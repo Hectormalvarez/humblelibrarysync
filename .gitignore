@@ -11,6 +11,7 @@ venv/
 *.json
 *.txt
 *.log
+*.csv
 
 # Playwright / Browser artifacts
 .playwright/
