@@ -96,8 +96,9 @@ def parse_library():
 
                         publisher = sub.get("payee", {}).get("human_name", "Unknown")
 
-                        if title not in library:
-                            library[title] = {
+                        key = (title, bundle_title)
+                        if key not in library:
+                            library[key] = {
                                 "title": title,
                                 "publisher": publisher,
                                 "bundle": bundle_title,
@@ -117,8 +118,9 @@ def parse_library():
 
                         platform = tpk.get("key_type_human_name", "Third-Party Key")
 
-                        if title not in library:
-                            library[title] = {
+                        key = (title, bundle_title)
+                        if key not in library:
+                            library[key] = {
                                 "title": title,
                                 "publisher": platform,
                                 "bundle": bundle_title,
@@ -132,7 +134,7 @@ def parse_library():
             except (json.JSONDecodeError, AttributeError):
                 continue
 
-    sorted_library = sorted(library.values(), key=lambda x: x["title"].lower())
+    sorted_library = sorted(library.values(), key=lambda x: (x["title"].lower(), x["bundle"].lower()))
 
     # --- Export 1: Plain Text (Titles only) ---
     with open(TXT_OUTPUT, "w", encoding="utf-8") as f:
