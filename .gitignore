@@ -1,0 +1,16 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+
+# Environments
+.venv/
+venv/
+.python-version
+
+# Local Data Dumps & Private Files
+*.json
+*.txt
+*.log
+
+# Playwright / Browser artifacts
+.playwright/
