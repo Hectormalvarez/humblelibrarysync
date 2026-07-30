@@ -1,6 +1,7 @@
 """CLI entrypoint for Humble Library Sync featuring an interactive menu loop."""
 
 import argparse
+import os
 import sys
 from pathlib import Path
 import questionary
@@ -9,6 +10,11 @@ from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
 from parse import export_to_csv, export_to_json, export_to_txt, parse_dump
 from status import check_status, format_status_report
+
+
+def clear_screen() -> None:
+    """Clears the terminal screen for a clean UI state."""
+    os.system("cls" if os.name == "nt" else "clear")
 
 
 def run_status(args: argparse.Namespace) -> None:
@@ -47,11 +53,64 @@ def run_duplicates(args: argparse.Namespace) -> None:
     print(report)
 
 
+def execute_full_sync(
+    dump_path: Path = Path("raw_library_dump.json"),
+    library_path: Path = Path("my_library.json"),
+) -> None:
+    """Helper running capture followed by parsing and exporting."""
+    capture_library(dump_file=dump_path)
+    catalog = parse_dump(dump_path)
+    export_to_json(catalog, library_path)
+    export_to_csv(catalog, "my_library.csv")
+    export_to_txt(catalog, "my_library.txt")
+    print(f"[*] Successfully synced {catalog['metadata']['total_items']} items.")
+
+
+def handle_onboarding(
+    library_path: Path = Path("my_library.json"),
+    dump_path: Path = Path("raw_library_dump.json"),
+) -> None:
+    """Detects missing state on boot and offers guided setup."""
+    if library_path.exists():
+        return
+
+    clear_screen()
+    status_data = check_status(library_path)
+    print(format_status_report(status_data) + "\n")
+
+    if dump_path.exists():
+        # Case B: Raw dump exists, but catalog json is missing
+        confirm = questionary.confirm(
+            "Unparsed dump 'raw_library_dump.json' found. Parse into library catalog now?"
+        ).ask()
+        if confirm:
+            catalog = parse_dump(dump_path)
+            export_to_json(catalog, library_path)
+            export_to_csv(catalog, "my_library.csv")
+            export_to_txt(catalog, "my_library.txt")
+            print(f"[*] Successfully parsed {catalog['metadata']['total_items']} items.")
+            questionary.press_any_key_to_continue("Press any key to enter main menu...").ask()
+    else:
+        # Case A: Neither dump nor library json exists
+        confirm = questionary.confirm(
+            "No library catalog found. Run your first Humble Bundle sync now?"
+        ).ask()
+        if confirm:
+            execute_full_sync(dump_path, library_path)
+            questionary.press_any_key_to_continue("Press any key to enter main menu...").ask()
+
+
 def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
     """Runs a persistent interactive terminal menu loop."""
+    dump_path = Path("raw_library_dump.json")
+    
+    # Run onboarding check before entering main loop
+    handle_onboarding(library_path, dump_path)
+
     while True:
+        clear_screen()
         status_data = check_status(library_path)
-        print("\n" + format_status_report(status_data) + "\n")
+        print(format_status_report(status_data) + "\n")
 
         choice = questionary.select(
             "Select an action:",
@@ -76,13 +135,7 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                 print("\n" + format_duplicate_report(duplicates, len(items), str(library_path)))
 
         elif choice == "🔄 Sync Library (Capture & Parse)":
-            dump_file = Path("raw_library_dump.json")
-            capture_library(dump_file=dump_file)
-            catalog = parse_dump(dump_file)
-            export_to_json(catalog, library_path)
-            export_to_csv(catalog, "my_library.csv")
-            export_to_txt(catalog, "my_library.txt")
-            print(f"[*] Successfully synced {catalog['metadata']['total_items']} items.")
+            execute_full_sync(dump_path, library_path)
 
         elif choice == "🌐 Inspect Live Bundle (Deal Evaluator)":
             print("[*] Bundle inspector module under construction...")
