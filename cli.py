@@ -48,12 +48,18 @@ def run_capture(args: argparse.Namespace) -> None:
 
 
 def run_parse(args: argparse.Namespace) -> None:
-    """Executes parser engine and exports structured catalog formats."""
+    """Executes parser engine, persists to database, and optionally exports files."""
     catalog = parse_dump(args.dump)
-    export_to_json(catalog, args.json_out)
-    export_to_csv(catalog, args.csv_out)
-    export_to_txt(catalog, args.txt_out)
-    print(f"[*] Parsed {catalog['metadata']['total_items']} items into JSON, CSV, and TXT.")
+    sync_catalog_to_db(catalog)
+    print(f"[*] Parsed {catalog['metadata']['total_items']} items into database.")
+
+    # Only write output files if explicit CLI output flags were provided (not defaults)
+    if args.json_out != Path("my_library.json"):
+        export_to_json(catalog, args.json_out)
+    if args.csv_out != Path("my_library.csv"):
+        export_to_csv(catalog, args.csv_out)
+    if args.txt_out != Path("my_library.txt"):
+        export_to_txt(catalog, args.txt_out)
 
 
 def run_duplicates(args: argparse.Namespace) -> None:
@@ -72,13 +78,11 @@ def execute_full_sync(
     dump_path: Path = Path("raw_library_dump.json"),
     library_path: Path = Path("my_library.json"),
 ) -> None:
-    """Helper running capture followed by parsing and exporting."""
+    """Helper running capture followed by parsing and persisting to the database."""
     capture_library(dump_file=dump_path)
     catalog = parse_dump(dump_path)
-    export_to_json(catalog, library_path)
-    export_to_csv(catalog, "my_library.csv")
-    export_to_txt(catalog, "my_library.txt")
-    print(f"[*] Successfully synced {catalog['metadata']['total_items']} items.")
+    sync_catalog_to_db(catalog)
+    print(f"[*] Successfully synced {catalog['metadata']['total_items']} items to database.")
 
 
 def _ensure_library_exists(
