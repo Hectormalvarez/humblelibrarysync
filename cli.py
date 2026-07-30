@@ -9,7 +9,7 @@ import questionary
 from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
 from parse import export_to_csv, export_to_json, export_to_txt, parse_dump
-from search import format_search_results, search_catalog
+from search import format_search_results, live_search_prompt, search_catalog
 from status import check_status, format_status_report
 
 
@@ -163,11 +163,36 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
             if not _ensure_library_exists(library_path, dump_path):
                 pass
             else:
-                query = questionary.text("Enter title, publisher, or bundle keyword:").ask()
-                if query:
-                    items, _ = load_library(library_path)
-                    matches = search_catalog(items, query)
-                    print(format_search_results(matches, query))
+                items, _ = load_library(library_path)
+                while True:
+                    selected = live_search_prompt(items)
+                    if selected is None:
+                        break  # Esc -> back to main menu
+                    print("\n" + "=" * 60)
+                    print(f"  Title:     {selected['title']}")
+                    bundles = selected.get("bundles", [])
+                    if bundles:
+                        print(f"  Bundles:   {bundles[0]}")
+                        for b in bundles[1:]:
+                            print(f"             {b}")
+                    print(f"  Publisher: {selected.get('publisher', 'Unknown')}")
+                    formats = ", ".join(selected.get("available_formats", []))
+                    print(f"  Formats:   {formats}")
+                    downloads = selected.get("downloads", {})
+                    if downloads:
+                        print(f"  File Keys/Downloads:")
+                        for fmt, info in downloads.items():
+                            url = info.get("url", "N/A")
+                            size = info.get("human_size", "")
+                            print(f"    {fmt}: {size} — {url}")
+                    else:
+                        print(f"  File Keys/Downloads: None")
+                    print("=" * 60)
+
+                    again = questionary.confirm("Search again?", default=True).ask()
+                    if not again:
+                        break
+                continue
 
         questionary.press_any_key_to_continue("Press any key to return to menu...").ask()
 
