@@ -1,11 +1,14 @@
 """Search and filtering utilities for the Humble Bundle library catalog."""
 
-from typing import Optional
+from typing import Any, Optional
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
+
+from database import SessionLocal
+from models import Bundle, Item
 
 
 def search_catalog(items: list[dict], query: str) -> list[dict]:
@@ -109,7 +112,35 @@ def _merge_items_by_title(items: list[dict], title: str) -> Optional[dict]:
     }
 
 
-def live_search_prompt(items: list[dict]) -> Optional[dict]:
+def load_search_items_from_db() -> list[dict[str, Any]]:
+    """
+    Loads all items from the SQLite database for search purposes.
+
+    Returns:
+        List of dicts with keys: title, publisher, bundle, available_formats, downloads.
+    """
+    db = SessionLocal()
+    try:
+        records = (
+            db.query(Item)
+            .join(Bundle, Item.bundle_id == Bundle.id)
+            .all()
+        )
+        items = []
+        for item in records:
+            items.append({
+                "title": item.title,
+                "publisher": item.publisher,
+                "bundle": item.bundle.title if item.bundle else "Unknown",
+                "available_formats": item.available_formats or [],
+                "downloads": item.downloads or {},
+            })
+        return items
+    finally:
+        db.close()
+
+
+def live_search_prompt(items: list[dict] | None = None) -> Optional[dict]:
     """Interactive search-as-you-type prompt that filters unique item titles live.
 
     As the user types, matching titles appear in an autocomplete dropdown
@@ -117,9 +148,14 @@ def live_search_prompt(items: list[dict]) -> Optional[dict]:
     Press *Tab* / *Down* to navigate completions, *Enter* to select,
     or *Esc* to cancel and return ``None``.
 
+    If *items* is None, items are loaded from the SQLite database automatically.
+
     Returns a merged item dictionary (with a ``bundles`` list of every bundle
     the title was purchased in), or ``None`` if cancelled.
     """
+    if items is None:
+        items = load_search_items_from_db()
+
     # Header block with instructions
     print("─" * 50)
     print("  🔍  Search Library")

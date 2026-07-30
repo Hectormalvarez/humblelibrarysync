@@ -9,6 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from database import SessionLocal
+from models import Bundle, Item
+
 
 def normalize_title(title: str) -> str:
     """Lowercases, strips punctuation, and collapses whitespace for fuzzy matching."""
@@ -94,16 +97,56 @@ def format_duplicate_report(
     return "\n".join(lines)
 
 
-def load_library(filepath: str | Path) -> tuple[list[dict], dict[str, Any]]:
-    """Loads and returns items list and metadata from a parsed library JSON file."""
-    path = Path(filepath)
-    if not path.exists():
-        raise FileNotFoundError(f"Library file not found: {path}")
+def load_library_from_db() -> tuple[list[dict[str, Any]], int]:
+    """
+    Loads all library items from the SQLite database via ORM.
 
-    with open(path, "r", encoding="utf-8") as f:
-        catalog = json.load(f)
+    Returns:
+        Tuple of (items_list, total_count) where each item dict contains
+        title, bundle, purchase_date, and publisher.
+    """
+    db = SessionLocal()
+    try:
+        records = (
+            db.query(Item)
+            .join(Bundle, Item.bundle_id == Bundle.id)
+            .all()
+        )
+        items = []
+        for item in records:
+            items.append({
+                "title": item.title,
+                "bundle": item.bundle.title if item.bundle else "Unknown",
+                "purchase_date": item.bundle.purchase_date if item.bundle else None,
+                "publisher": item.publisher,
+            })
+        return items, len(items)
+    finally:
+        db.close()
 
-    return catalog.get("items", []), catalog.get("metadata", {})
+
+def load_library(filepath: str | Path | None = None) -> tuple[list[dict], dict[str, Any]]:
+    """
+    Loads library items from a JSON file, falling back to the database if
+    no filepath is provided or the file does not exist.
+
+    Args:
+        filepath: Optional path to a library JSON file.
+
+    Returns:
+        Tuple of (items_list, metadata_dict). When loading from the database,
+        metadata contains only a total_items count.
+    """
+    if filepath is not None:
+        path = Path(filepath)
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                catalog = json.load(f)
+            return catalog.get("items", []), catalog.get("metadata", {})
+
+    # Fall back to database
+    items, total = load_library_from_db()
+    return items, {"total_items": total}
 
 
 if __name__ == "__main__":
