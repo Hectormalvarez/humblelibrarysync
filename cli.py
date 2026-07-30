@@ -6,6 +6,12 @@ import sys
 from pathlib import Path
 import questionary
 
+from bundle_inspector import (
+    evaluate_deal,
+    fetch_bundle_items,
+    format_deal_report,
+    load_active_bundles,
+)
 from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
 from parse import export_to_csv, export_to_json, export_to_txt, parse_dump
@@ -157,7 +163,147 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
             execute_full_sync(dump_path, library_path)
 
         elif choice == "🌐 Inspect Live Bundle (Deal Evaluator)":
-            print("[*] Bundle inspector module under construction...")
+            if not _ensure_library_exists(library_path, dump_path):
+                pass
+            else:
+                def _bundle_label(b: dict) -> str:
+                    label = b['title']
+                    if b.get('author'):
+                        label += f" ({b['author']})"
+                    if b.get('end_date'):
+                        label += f" — ends {b['end_date'][:10]}"
+                    return label
+
+                def _bundle_category(url: str) -> str:
+                    for cat in ("books", "games", "software"):
+                        if f"/{cat}/" in url:
+                            return cat
+                    return "other"
+
+                category_order = ["books", "games", "software", "other"]
+                category_labels = {
+                    "books": "📚 Books",
+                    "games": "🎮 Games",
+                    "software": "💻 Software",
+                    "other": "📦 Other",
+                }
+
+                while True:
+                    try:
+                        bundles = load_active_bundles()
+                    except RuntimeError as e:
+                        print(e)
+                        break
+
+                    if not bundles:
+                        print("[!] No active bundles found.")
+                        break
+
+                    # Group and sort bundles by category
+                    grouped: dict[str, list[dict]] = {c: [] for c in category_order}
+                    for b in bundles:
+                        cat = _bundle_category(b["url"])
+                        grouped[cat].append(b)
+                    for cat in category_order:
+                        grouped[cat].sort(key=lambda b: b["title"].lower())
+
+                    # --- Category selection ---
+                    cat_choices = []
+                    for cat in category_order:
+                        cat_bundles = grouped[cat]
+                        if not cat_bundles:
+                            continue
+                        cat_choices.append(f"{category_labels[cat]} ({len(cat_bundles)})")
+                    cat_choices.append("🔗 Enter Custom Bundle URL")
+                    cat_choices.append("🔄 Refresh Bundle List")
+                    cat_choices.append("← Back to Menu")
+
+                    cat_selected = questionary.select(
+                        "Select a category:",
+                        choices=cat_choices,
+                    ).ask()
+
+                    if cat_selected is None or cat_selected == "← Back to Menu":
+                        break
+                    elif cat_selected == "🔄 Refresh Bundle List":
+                        try:
+                            print("[*] Refreshing active bundles...")
+                            from bundle_inspector import capture_active_bundles
+                            capture_active_bundles(force=True)
+                        except RuntimeError as e:
+                            print(e)
+                        continue
+                    elif cat_selected == "🔗 Enter Custom Bundle URL":
+                        custom_url = questionary.text(
+                            "Enter full bundle URL:",
+                            validate=lambda text: (
+                                True
+                                if text.startswith("https://www.humblebundle.com/")
+                                else "URL must start with https://www.humblebundle.com/"
+                            ),
+                        ).ask()
+
+                        if custom_url:
+                            try:
+                                print(f"[*] Fetching bundle items from: {custom_url}")
+                                bundle_data = fetch_bundle_items(custom_url)
+                                items, _ = load_library(library_path)
+                                eval_data = evaluate_deal(
+                                    bundle_data["items"], items,
+                                    pricing=bundle_data.get("pricing"),
+                                    tier_item_map=bundle_data.get("tier_item_map"),
+                                )
+                                print("\n" + format_deal_report(bundle_data["bundle_name"], eval_data))
+                                questionary.press_any_key_to_continue("Press any key to continue...").ask()
+                            except RuntimeError as e:
+                                print(e)
+                        continue
+                    else:
+                        # Extract category key from the selected label
+                        selected_cat = None
+                        for cat in category_order:
+                            if cat_selected.startswith(category_labels[cat]):
+                                selected_cat = cat
+                                break
+
+                        if not selected_cat or not grouped.get(selected_cat):
+                            continue
+
+                        # --- Bundle selection within category ---
+                        cat_bundles = grouped[selected_cat]
+                        while True:
+                            bundle_choices = [_bundle_label(b) for b in cat_bundles]
+                            bundle_choices.append("← Back to Categories")
+
+                            selected = questionary.select(
+                                f"Select a bundle from {category_labels[selected_cat]}:",
+                                choices=bundle_choices,
+                            ).ask()
+
+                            if selected is None or selected == "← Back to Categories":
+                                break
+
+                            # Find the selected bundle
+                            bundle = None
+                            for b in cat_bundles:
+                                if _bundle_label(b) == selected:
+                                    bundle = b
+                                    break
+
+                            if bundle:
+                                try:
+                                    print(f"[*] Fetching bundle items: {bundle['title']}")
+                                    bundle_data = fetch_bundle_items(bundle["url"])
+                                    items, _ = load_library(library_path)
+                                    eval_data = evaluate_deal(
+                                        bundle_data["items"], items,
+                                        pricing=bundle_data.get("pricing"),
+                                        tier_item_map=bundle_data.get("tier_item_map"),
+                                    )
+                                    print("\n" + format_deal_report(bundle_data["bundle_name"], eval_data))
+                                    questionary.press_any_key_to_continue("Press any key to return to bundle list...").ask()
+                                except RuntimeError as e:
+                                    print(e)
 
         elif choice == "🔍 Search Library":
             if not _ensure_library_exists(library_path, dump_path):
