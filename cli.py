@@ -34,7 +34,7 @@ def clear_screen() -> None:
 
 def run_status(args: argparse.Namespace) -> None:
     """Executes catalog health check and outputs status report."""
-    data = check_status(args.input)
+    data = check_status()
     print(format_status_report(data))
 
 
@@ -76,7 +76,6 @@ def run_duplicates(args: argparse.Namespace) -> None:
 
 def execute_full_sync(
     dump_path: Path = Path("raw_library_dump.json"),
-    library_path: Path = Path("my_library.json"),
 ) -> None:
     """Helper running capture followed by parsing and persisting to the database."""
     capture_library(dump_file=dump_path)
@@ -85,10 +84,7 @@ def execute_full_sync(
     print(f"[*] Successfully synced {catalog['metadata']['total_items']} items to database.")
 
 
-def _ensure_library_exists(
-    library_path: Path,
-    dump_path: Path,
-) -> bool:
+def _ensure_library_exists(dump_path: Path) -> bool:
     """Checks library exists in DB; if missing, prompts user to sync. Returns True if available."""
     db = SessionLocal()
     try:
@@ -103,15 +99,12 @@ def _ensure_library_exists(
         "Library catalog missing. Run sync now to generate it?"
     ).ask()
     if confirm:
-        execute_full_sync(dump_path, library_path)
+        execute_full_sync(dump_path)
         return True
     return False
 
 
-def handle_onboarding(
-    library_path: Path = Path("my_library.json"),
-    dump_path: Path = Path("raw_library_dump.json"),
-) -> None:
+def handle_onboarding(dump_path: Path = Path("raw_library_dump.json")) -> None:
     """Detects missing state on boot and offers guided setup."""
     db = SessionLocal()
     try:
@@ -123,7 +116,7 @@ def handle_onboarding(
         return
 
     clear_screen()
-    status_data = check_status(library_path)
+    status_data = check_status()
     print(format_status_report(status_data) + "\n")
 
     if dump_path.exists():
@@ -142,20 +135,20 @@ def handle_onboarding(
             "No library catalog found. Run your first Humble Bundle sync now?"
         ).ask()
         if confirm:
-            execute_full_sync(dump_path, library_path)
+            execute_full_sync(dump_path)
             questionary.press_any_key_to_continue("Press any key to enter main menu...").ask()
 
 
-def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
+def run_interactive_menu() -> None:
     """Runs a persistent interactive terminal menu loop."""
     dump_path = Path("raw_library_dump.json")
     
     # Run onboarding check before entering main loop
-    handle_onboarding(library_path, dump_path)
+    handle_onboarding(dump_path)
 
     while True:
         clear_screen()
-        status_data = check_status(library_path)
+        status_data = check_status()
         print(format_status_report(status_data) + "\n")
 
         choice = questionary.select(
@@ -175,18 +168,18 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
             sys.exit(0)
 
         if choice == "📊 View Duplicate Analysis":
-            if not _ensure_library_exists(library_path, dump_path):
+            if not _ensure_library_exists(dump_path):
                 pass
             else:
-                items, _ = load_library(library_path)
+                items, _ = load_library()
                 duplicates = find_duplicates(items)
-                print("\n" + format_duplicate_report(duplicates, len(items), str(library_path)))
+                print("\n" + format_duplicate_report(duplicates, len(items), "sqlite:///./humble_library.db"))
 
         elif choice == "🔄 Sync Library (Capture & Parse)":
-            execute_full_sync(dump_path, library_path)
+            execute_full_sync(dump_path)
 
         elif choice == "🌐 Inspect Live Bundle (Deal Evaluator)":
-            if not _ensure_library_exists(library_path, dump_path):
+            if not _ensure_library_exists(dump_path):
                 pass
             else:
                 def _bundle_label(b: dict) -> str:
@@ -270,7 +263,7 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                             try:
                                 print(f"[*] Fetching bundle items from: {custom_url}")
                                 bundle_data = fetch_bundle_items(custom_url)
-                                items, _ = load_library(library_path)
+                                items, _ = load_library()
                                 eval_data = evaluate_deal(
                                     bundle_data["items"], items,
                                     pricing=bundle_data.get("pricing"),
@@ -324,7 +317,7 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                                 try:
                                     print(f"[*] Fetching bundle items: {bundle['title']}")
                                     bundle_data = fetch_bundle_items(bundle["url"])
-                                    items, _ = load_library(library_path)
+                                    items, _ = load_library()
                                     eval_data = evaluate_deal(
                                         bundle_data["items"], items,
                                         pricing=bundle_data.get("pricing"),
@@ -366,12 +359,11 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
             questionary.press_any_key_to_continue("Press any key to return to menu...").ask()
 
         elif choice == "🔍 Search Library":
-            if not _ensure_library_exists(library_path, dump_path):
+            if not _ensure_library_exists(dump_path):
                 pass
             else:
-                items, _ = load_library(library_path)
                 while True:
-                    selected = live_search_prompt(items)
+                    selected = live_search_prompt()
                     if selected is None:
                         break  # Esc -> back to main menu
                     print("\n" + "=" * 60)
@@ -412,8 +404,8 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
 
     # Status subcommand
-    status_parser = subparsers.add_parser("status", help="Check catalog age and link health status.")
-    status_parser.add_argument("--input", type=Path, default=Path("my_library.json"), help="Catalog JSON path.")
+    status_parser = subparsers.add_parser("status", help="Check catalog age and link health status (reads from SQLite database).")
+    status_parser.add_argument("--input", type=Path, default=None, help="Ignored; status reads from the SQLite database.")
     status_parser.set_defaults(func=run_status)
 
     # Capture subcommand
@@ -432,8 +424,8 @@ def build_parser() -> argparse.ArgumentParser:
     parse_parser.set_defaults(func=run_parse)
 
     # Duplicates subcommand
-    dup_parser = subparsers.add_parser("duplicates", help="Check catalog for duplicate titles across bundles.")
-    dup_parser.add_argument("--input", type=Path, default=Path("my_library.json"), help="Catalog JSON path.")
+    dup_parser = subparsers.add_parser("duplicates", help="Check catalog for duplicate titles across bundles (reads from SQLite database).")
+    dup_parser.add_argument("--input", type=Path, default=None, help="Optional path to a JSON catalog file; defaults to SQLite database.")
     dup_parser.set_defaults(func=run_duplicates)
 
     return parser
