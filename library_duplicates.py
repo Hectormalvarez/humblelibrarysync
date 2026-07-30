@@ -1,103 +1,119 @@
-#!/usr/bin/env python3
 """
-Library Duplicate Report Generator for Humble Library Sync
-Reads my_library.json and lists titles that appear in multiple bundles.
+Duplicate cross-reference engine for Humble Library Sync.
+Identifies titles that appear across multiple bundle purchases.
 """
 
 import json
-import os
 import re
-from collections import defaultdict
 from datetime import datetime, timezone
-
-DEFAULT_INPUT = "my_library.json"
+from pathlib import Path
+from typing import Any
 
 
 def normalize_title(title: str) -> str:
-    """Lowercase, strip punctuation except alphanumerics, and collapse whitespace."""
+    """Lowercases, strips punctuation, and collapses whitespace for fuzzy matching."""
     title = title.lower()
     title = re.sub(r"[^\w\s]", "", title)
-    title = re.sub(r"\s+", " ", title).strip()
-    return title
+    return re.sub(r"\s+", " ", title).strip()
 
 
-def load_library(filepath: str):
-    """Load and return the items list from a library JSON file."""
-    if not os.path.exists(filepath):
-        print(f"[!] Error: {filepath} not found.")
-        return None, None
-
-    with open(filepath, "r", encoding="utf-8") as f:
-        catalog = json.load(f)
-
-    items = catalog.get("items", [])
-    metadata = catalog.get("metadata", {})
-    return items, metadata
-
-
-def generate_report(items: list) -> str:
-    """Build a report showing titles that appear in more than one bundle."""
-    if not items:
-        return "No items in library."
-
-    exact_groups = defaultdict(list)
-    all_titles = set()
-    bundle_set = set()
+def find_duplicates(items: list[dict[str, Any]]) -> dict[str, list[dict[str, str]]]:
+    """
+    Pure analysis engine: Scans items and returns duplicate clusters 
+    grouped by normalized title.
+    """
+    grouped_titles: dict[str, list[dict[str, str]]] = {}
 
     for item in items:
-        title = item.get("title", "").strip()
+        raw_title = item.get("title", "").strip()
         bundle = item.get("bundle", "Unknown Bundle")
-        purchase = item.get("purchase_date", "Unknown Date")
-        norm_title = normalize_title(title)
-        exact_groups[norm_title].append((title, bundle, purchase))
-        all_titles.add(norm_title)
-        bundle_set.add(bundle)
+        purchase_date = item.get("purchase_date", "Unknown Date")
 
-    duplicates = {
-        nt: entries
-        for nt, entries in exact_groups.items()
+        if not raw_title:
+            continue
+
+        norm_title = normalize_title(raw_title)
+
+        if norm_title not in grouped_titles:
+            grouped_titles[norm_title] = []
+
+        grouped_titles[norm_title].append({
+            "display_title": raw_title,
+            "bundle": bundle,
+            "purchase_date": purchase_date,
+        })
+
+    # Return only entries that appear in more than one bundle
+    return {
+        norm: entries 
+        for norm, entries in grouped_titles.items() 
         if len(entries) > 1
     }
 
-    report_lines = []
-    report_lines.append("=" * 50)
-    report_lines.append("LIBRARY DUPLICATE REPORT")
-    report_lines.append("=" * 50)
-    report_lines.append(f"Generated: {datetime.now(timezone.utc).isoformat()}")
-    report_lines.append(f"Data source: {DEFAULT_INPUT}")
-    report_lines.append("-" * 50)
-    report_lines.append("OVERVIEW")
-    report_lines.append(f"  Total items:          {len(items)}")
-    report_lines.append(f"  Unique titles:        {len(all_titles)}")
-    report_lines.append(f"  Bundles represented:  {len(bundle_set)}")
-    report_lines.append(f"  Duplicate clusters:   {len(duplicates)} titles in multiple bundles")
-    report_lines.append("")
 
-    report_lines.append("-" * 50)
-    report_lines.append("DUPLICATES")
-    report_lines.append("-" * 50)
+def format_duplicate_report(
+    duplicates: dict[str, list[dict[str, str]]], 
+    total_items: int = 0, 
+    source_file: str = "my_library.json"
+) -> str:
+    """Formats raw duplicate data into a plain text report for terminal output."""
+    unique_bundles = {
+        entry["bundle"] 
+        for entries in duplicates.values() 
+        for entry in entries
+    }
+
+    lines = [
+        "=" * 50,
+        "LIBRARY DUPLICATE REPORT",
+        "=" * 50,
+        f"Generated: {datetime.now(timezone.utc).isoformat()}",
+        f"Data source: {source_file}",
+        "-" * 50,
+        "OVERVIEW",
+        f"  Total items scanned:  {total_items}",
+        f"  Duplicate clusters:   {len(duplicates)} titles",
+        f"  Bundles involved:     {len(unique_bundles)}",
+        "-" * 50,
+        "DUPLICATES",
+        "-" * 50,
+    ]
+
     if not duplicates:
-        report_lines.append("None found.")
+        lines.append("No duplicates found across your bundles.")
     else:
         for norm_title in sorted(duplicates.keys()):
-            occurrences = duplicates[norm_title]
-            display_title = occurrences[0][0]
-            report_lines.append(f'"{display_title}"')
-            for _, bundle, purchase in occurrences:
-                report_lines.append(f"  - {bundle} ({purchase})")
-            report_lines.append("")
+            entries = duplicates[norm_title]
+            display_title = entries[0]["display_title"]
+            lines.append(f'"{display_title}"')
+            for entry in entries:
+                lines.append(f"  - {entry['bundle']} ({entry['purchase_date']})")
+            lines.append("")
 
-    report_lines.append("=" * 50)
-    return "\n".join(report_lines)
+    lines.append("=" * 50)
+    return "\n".join(lines)
 
 
-def main():
-    items, metadata = load_library(DEFAULT_INPUT)
-    if items is None:
-        return
-    report = generate_report(items)
-    return report
+def load_library(filepath: str | Path) -> tuple[list[dict], dict[str, Any]]:
+    """Loads and returns items list and metadata from a parsed library JSON file."""
+    path = Path(filepath)
+    if not path.exists():
+        raise FileNotFoundError(f"Library file not found: {path}")
+
+    with open(path, "r", encoding="utf-8") as f:
+        catalog = json.load(f)
+
+    return catalog.get("items", []), catalog.get("metadata", {})
 
 
 if __name__ == "__main__":
-    print(main())
+    target = Path("my_library.json")
+    if target.exists():
+        items, meta = load_library(target)
+        duplicates = find_duplicates(items)
+        report = format_duplicate_report(
+            duplicates=duplicates, 
+            total_items=len(items), 
+            source_file=str(target)
+        )
+        print(report)
