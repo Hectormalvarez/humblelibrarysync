@@ -7,11 +7,23 @@ __pycache__/
 venv/
 .python-version
 
+# Database & State
+*.db
+*.sqlite
+*.sqlite3
+
 # Local Data Dumps & Private Files
 *.json
 *.txt
 *.log
 *.csv
 
+# Legacy / Optional Exports
+my_library.*
+evaluated_bundles_log.json
+expired_reading_list.txt
+
 # Playwright / Browser artifacts
 .playwright/
+auth.json
+raw_library_dump.json
