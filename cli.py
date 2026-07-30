@@ -20,9 +20,11 @@ from bundle_inspector import (
 )
 from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
-from parse import export_to_csv, export_to_json, export_to_txt, parse_dump
+from parse import export_to_csv, export_to_json, export_to_txt, parse_dump, sync_catalog_to_db
 from search import format_search_results, live_search_prompt, search_catalog
 from status import check_status, format_status_report
+from database import SessionLocal
+from models import Item
 
 
 def clear_screen() -> None:
@@ -83,8 +85,14 @@ def _ensure_library_exists(
     library_path: Path,
     dump_path: Path,
 ) -> bool:
-    """Checks library exists; if missing, prompts user to sync. Returns True if available."""
-    if library_path.exists():
+    """Checks library exists in DB; if missing, prompts user to sync. Returns True if available."""
+    db = SessionLocal()
+    try:
+        count = db.query(Item).count()
+    finally:
+        db.close()
+
+    if count > 0:
         return True
 
     confirm = questionary.confirm(
@@ -101,7 +109,13 @@ def handle_onboarding(
     dump_path: Path = Path("raw_library_dump.json"),
 ) -> None:
     """Detects missing state on boot and offers guided setup."""
-    if library_path.exists():
+    db = SessionLocal()
+    try:
+        count = db.query(Item).count()
+    finally:
+        db.close()
+
+    if count > 0:
         return
 
     clear_screen()
@@ -109,19 +123,17 @@ def handle_onboarding(
     print(format_status_report(status_data) + "\n")
 
     if dump_path.exists():
-        # Case B: Raw dump exists, but catalog json is missing
+        # Case B: Raw dump exists, but no records in DB
         confirm = questionary.confirm(
-            "Unparsed dump 'raw_library_dump.json' found. Parse into library catalog now?"
+            "Unparsed dump 'raw_library_dump.json' found. Parse into database now?"
         ).ask()
         if confirm:
             catalog = parse_dump(dump_path)
-            export_to_json(catalog, library_path)
-            export_to_csv(catalog, "my_library.csv")
-            export_to_txt(catalog, "my_library.txt")
-            print(f"[*] Successfully parsed {catalog['metadata']['total_items']} items.")
+            sync_catalog_to_db(catalog)
+            print(f"[*] Successfully parsed {catalog['metadata']['total_items']} items into database.")
             questionary.press_any_key_to_continue("Press any key to enter main menu...").ask()
     else:
-        # Case A: Neither dump nor library json exists
+        # Case A: Neither DB records nor raw dump exists
         confirm = questionary.confirm(
             "No library catalog found. Run your first Humble Bundle sync now?"
         ).ask()
