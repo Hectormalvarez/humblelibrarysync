@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
+from database import SessionLocal, init_db
+from models import Bundle, Item
+
 
 def extract_expiration_from_url(url_string: str) -> Optional[str]:
     """Extracts the 'exp=' UNIX expiration timestamp from Humble's signed URL string."""
@@ -177,6 +180,42 @@ def export_to_txt(catalog: dict[str, Any], output_file: str | Path) -> None:
     with open(output_path, "w", encoding="utf-8") as f:
         for item in items:
             f.write(f"{item['title']}\n")
+
+
+def sync_catalog_to_db(catalog_data: dict[str, Any]) -> None:
+    """Syncs parsed catalog data into the database, replacing all existing records."""
+    init_db()
+    db = SessionLocal()
+    try:
+        db.query(Bundle).delete()
+        bundles_by_title: dict[str, list[dict]] = {}
+        for item in catalog_data["items"]:
+            bundle_title = item["bundle"]
+            bundles_by_title.setdefault(bundle_title, []).append(item)
+
+        for bundle_title, items in bundles_by_title.items():
+            bundle = Bundle(
+                title=bundle_title,
+                purchase_date=items[0].get("purchase_date"),
+                captured_at=items[0].get("captured_at"),
+            )
+            for item_data in items:
+                item = Item(
+                    title=item_data["title"],
+                    publisher=item_data.get("publisher", "Unknown"),
+                    item_type=item_data.get("type", "download"),
+                    available_formats=item_data.get("available_formats", []),
+                    downloads=item_data.get("downloads", {}),
+                )
+                bundle.items.append(item)
+            db.add(bundle)
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
