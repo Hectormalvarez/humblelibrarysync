@@ -1,4 +1,4 @@
-"""CLI entrypoint unifying capture, parse, duplicate, and view subcommands."""
+"""CLI entrypoint for Humble Library Sync."""
 
 import argparse
 from pathlib import Path
@@ -6,6 +6,13 @@ from pathlib import Path
 from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
 from parse import export_to_csv, export_to_json, export_to_txt, parse_dump
+from status import check_status, format_status_report
+
+
+def run_status(args: argparse.Namespace) -> None:
+    """Executes catalog health check and outputs status report."""
+    data = check_status(args.input)
+    print(format_status_report(data))
 
 
 def run_capture(args: argparse.Namespace) -> None:
@@ -18,7 +25,7 @@ def run_capture(args: argparse.Namespace) -> None:
 
 
 def run_parse(args: argparse.Namespace) -> None:
-    """Executes the parser engine and exports structured catalog formats."""
+    """Executes parser engine and exports structured catalog formats."""
     catalog = parse_dump(args.dump)
     export_to_json(catalog, args.json_out)
     export_to_csv(catalog, args.csv_out)
@@ -27,7 +34,7 @@ def run_parse(args: argparse.Namespace) -> None:
 
 
 def run_duplicates(args: argparse.Namespace) -> None:
-    """Executes duplicate detection and prints the formatted summary."""
+    """Executes duplicate detection and prints formatted summary."""
     items, _ = load_library(args.input)
     duplicates = find_duplicates(items)
     report = format_duplicate_report(
@@ -38,18 +45,18 @@ def run_duplicates(args: argparse.Namespace) -> None:
     print(report)
 
 
-def run_view(args: argparse.Namespace) -> None:
-    """Placeholder handler for interactive library viewing."""
-    print("[*] Interactive viewer module under construction...")
-
-
 def build_parser() -> argparse.ArgumentParser:
     """Constructs and configures the command-line argument parser."""
     parser = argparse.ArgumentParser(
         prog="humble-sync",
         description="Capture, parse, analyze, and browse your Humble Bundle library.",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Status subcommand
+    status_parser = subparsers.add_parser("status", help="Check catalog age and link health status.")
+    status_parser.add_argument("--input", type=Path, default=Path("my_library.json"), help="Catalog JSON path.")
+    status_parser.set_defaults(func=run_status)
 
     # Capture subcommand
     cap_parser = subparsers.add_parser("capture", help="Intercept raw API data from Humble Bundle.")
@@ -71,16 +78,19 @@ def build_parser() -> argparse.ArgumentParser:
     dup_parser.add_argument("--input", type=Path, default=Path("my_library.json"), help="Catalog JSON path.")
     dup_parser.set_defaults(func=run_duplicates)
 
-    # View subcommand
-    view_parser = subparsers.add_parser("view", help="Interactively browse and search cataloged items.")
-    view_parser.set_defaults(func=run_view)
-
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if not args.command:
+        # Default action when no subcommand is specified
+        status_data = check_status("my_library.json")
+        print(format_status_report(status_data))
+        return
+
     args.func(args)
 
 
