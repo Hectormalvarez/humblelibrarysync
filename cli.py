@@ -9,6 +9,7 @@ import questionary
 from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
 from parse import export_to_csv, export_to_json, export_to_txt, parse_dump
+from search import format_search_results, search_catalog
 from status import check_status, format_status_report
 
 
@@ -165,25 +166,8 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                 query = questionary.text("Enter title, publisher, or bundle keyword:").ask()
                 if query:
                     items, _ = load_library(library_path)
-                    query_lower = query.strip().lower()
-                    matches = [
-                        item for item in items
-                        if query_lower in item["title"].lower()
-                        or query_lower in item.get("publisher", "").lower()
-                        or query_lower in item.get("bundle", "").lower()
-                    ]
-                    if not matches:
-                        print(f"[!] No results found for '{query}'.")
-                    else:
-                        print(f"\n{'='*60}")
-                        print(f"Search results for: '{query}' ({len(matches)} match(es))")
-                        print(f"{'-'*60}")
-                        for item in matches:
-                            formats = ", ".join(item.get("available_formats", []))
-                            print(f"  Title:    {item['title']}")
-                            print(f"  Bundle:   {item.get('bundle', 'Unknown')}")
-                            print(f"  Formats:  {formats}")
-                            print(f"{'-'*60}")
+                    matches = search_catalog(items, query)
+                    print(format_search_results(matches, query))
 
         questionary.press_any_key_to_continue("Press any key to return to menu...").ask()
 
