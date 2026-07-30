@@ -66,6 +66,23 @@ def execute_full_sync(
     print(f"[*] Successfully synced {catalog['metadata']['total_items']} items.")
 
 
+def _ensure_library_exists(
+    library_path: Path,
+    dump_path: Path,
+) -> bool:
+    """Checks library exists; if missing, prompts user to sync. Returns True if available."""
+    if library_path.exists():
+        return True
+
+    confirm = questionary.confirm(
+        "Library catalog missing. Run sync now to generate it?"
+    ).ask()
+    if confirm:
+        execute_full_sync(dump_path, library_path)
+        return True
+    return False
+
+
 def handle_onboarding(
     library_path: Path = Path("my_library.json"),
     dump_path: Path = Path("raw_library_dump.json"),
@@ -118,6 +135,7 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                 "📊 View Duplicate Analysis",
                 "🔄 Sync Library (Capture & Parse)",
                 "🌐 Inspect Live Bundle (Deal Evaluator)",
+                "🔍 Search Library",
                 "❌ Exit",
             ],
         ).ask()
@@ -127,8 +145,8 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
             sys.exit(0)
 
         if choice == "📊 View Duplicate Analysis":
-            if not library_path.exists():
-                print(f"[!] {library_path} not found. Run sync first.")
+            if not _ensure_library_exists(library_path, dump_path):
+                pass
             else:
                 items, _ = load_library(library_path)
                 duplicates = find_duplicates(items)
@@ -139,6 +157,33 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
 
         elif choice == "🌐 Inspect Live Bundle (Deal Evaluator)":
             print("[*] Bundle inspector module under construction...")
+
+        elif choice == "🔍 Search Library":
+            if not _ensure_library_exists(library_path, dump_path):
+                pass
+            else:
+                query = questionary.text("Enter title, publisher, or bundle keyword:").ask()
+                if query:
+                    items, _ = load_library(library_path)
+                    query_lower = query.strip().lower()
+                    matches = [
+                        item for item in items
+                        if query_lower in item["title"].lower()
+                        or query_lower in item.get("publisher", "").lower()
+                        or query_lower in item.get("bundle", "").lower()
+                    ]
+                    if not matches:
+                        print(f"[!] No results found for '{query}'.")
+                    else:
+                        print(f"\n{'='*60}")
+                        print(f"Search results for: '{query}' ({len(matches)} match(es))")
+                        print(f"{'-'*60}")
+                        for item in matches:
+                            formats = ", ".join(item.get("available_formats", []))
+                            print(f"  Title:    {item['title']}")
+                            print(f"  Bundle:   {item.get('bundle', 'Unknown')}")
+                            print(f"  Formats:  {formats}")
+                            print(f"{'-'*60}")
 
         questionary.press_any_key_to_continue("Press any key to return to menu...").ask()
 
