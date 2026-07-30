@@ -3,109 +3,114 @@ Library status module for Humble Library Sync.
 Analyzes catalog health, sync age, and CDN download URL expiration states.
 """
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from database import SessionLocal
+from models import Bundle, Item
 
-def check_status(library_file: str | Path = "my_library.json") -> dict[str, Any]:
-    """
-    Analyzes catalog existence, sync age, and CDN download link expiration times.
-    Returns a dictionary of health metrics.
-    """
-    path = Path(library_file)
-    if not path.exists():
-        return {
-            "status": "MISSING",
-            "file_path": str(path),
-        }
 
+def check_status(library_file: str | Path | None = None) -> dict[str, Any]:
+    """
+    Analyzes catalog health, sync age, and CDN download link expiration times
+    by querying the SQLite database directly.
+
+    Args:
+        library_file: Ignored (kept for backward compatibility).
+
+    Returns:
+        Dictionary of health metrics matching the previous output contract.
+    """
+    db = SessionLocal()
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            catalog = json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return {
-            "status": "CORRUPTED",
-            "file_path": str(path),
-        }
+        total_bundles = db.query(Bundle).count()
+        total_items = db.query(Item).count()
 
-    metadata = catalog.get("metadata", {})
-    items = catalog.get("items", [])
+        if total_items == 0:
+            return {
+                "status": "MISSING",
+                "file_path": "sqlite:///./humble_library.db",
+            }
 
-    now = datetime.now(timezone.utc)
-    captured_at_raw = metadata.get("dump_captured_at") or metadata.get("generated_at")
+        now = datetime.now(timezone.utc)
 
-    sync_age_str = "Unknown"
-    if captured_at_raw:
-        try:
-            captured_dt = datetime.fromisoformat(captured_at_raw)
-            delta = now - captured_dt
-            days = delta.days
-            hours = delta.seconds // 3600
-            sync_age_str = f"{days}d {hours}h ago ({captured_dt.strftime('%Y-%m-%d')})"
-        except ValueError:
-            pass
+        # Latest captured_at across all bundles
+        latest_bundle = db.query(Bundle).order_by(Bundle.captured_at.desc()).first()
+        captured_at_raw = latest_bundle.captured_at if latest_bundle else None
 
-    active_links = 0
-    expired_links = 0
-    key_only_items = 0
-    earliest_expiration: datetime | None = None
-    bundles = set()
-
-    for item in items:
-        bundle_name = item.get("bundle")
-        if bundle_name:
-            bundles.add(bundle_name)
-
-        if item.get("type") == "redemption_key":
-            key_only_items += 1
-            continue
-
-        downloads = item.get("downloads", {})
-        for fmt_data in downloads.values():
-            expires_at_raw = fmt_data.get("url_expires_at")
-            if not expires_at_raw:
-                continue
-
+        sync_age_str = "Unknown"
+        if captured_at_raw:
             try:
-                exp_dt = datetime.fromisoformat(expires_at_raw)
-                if exp_dt > now:
-                    active_links += 1
-                    if earliest_expiration is None or exp_dt < earliest_expiration:
-                        earliest_expiration = exp_dt
-                else:
-                    expired_links += 1
+                captured_dt = datetime.fromisoformat(captured_at_raw)
+                delta = now - captured_dt
+                days = delta.days
+                hours = delta.seconds // 3600
+                sync_age_str = f"{days}d {hours}h ago ({captured_dt.strftime('%Y-%m-%d')})"
             except ValueError:
-                continue
+                pass
 
-    total_download_links = active_links + expired_links
+        # Count key-only items
+        key_only_items = db.query(Item).filter(
+            Item.item_type == "redemption_key"
+        ).count()
 
-    if total_download_links == 0:
-        health_status = "NO_DOWNLOADS"
-    elif active_links > 0:
-        health_status = "ACTIVE"
-    else:
-        health_status = "EXPIRED"
+        # Iterate over all download items to compute link health
+        active_links = 0
+        expired_links = 0
+        earliest_expiration: datetime | None = None
 
-    time_remaining_str = "None"
-    if earliest_expiration and health_status == "ACTIVE":
-        remaining_seconds = int((earliest_expiration - now).total_seconds())
-        hours = remaining_seconds // 3600
-        minutes = (remaining_seconds % 3600) // 60
-        time_remaining_str = f"{hours}h {minutes}m"
+        download_items = db.query(Item).filter(
+            Item.item_type != "redemption_key"
+        ).all()
 
-    return {
-        "status": health_status,
-        "file_path": str(path),
-        "total_items": len(items),
-        "total_bundles": len(bundles),
-        "key_only_items": key_only_items,
-        "sync_age": sync_age_str,
-        "active_links": active_links,
-        "expired_links": expired_links,
-        "link_time_remaining": time_remaining_str,
-    }
+        for item in download_items:
+            downloads = item.downloads or {}
+            for fmt_data in downloads.values():
+                expires_at_raw = fmt_data.get("url_expires_at") if isinstance(fmt_data, dict) else None
+                if not expires_at_raw:
+                    continue
+
+                try:
+                    exp_dt = datetime.fromisoformat(expires_at_raw)
+                    if exp_dt > now:
+                        active_links += 1
+                        if earliest_expiration is None or exp_dt < earliest_expiration:
+                            earliest_expiration = exp_dt
+                    else:
+                        expired_links += 1
+                except ValueError:
+                    continue
+
+        total_download_links = active_links + expired_links
+
+        if total_download_links == 0:
+            health_status = "NO_DOWNLOADS"
+        elif active_links > 0:
+            health_status = "ACTIVE"
+        else:
+            health_status = "EXPIRED"
+
+        time_remaining_str = "None"
+        if earliest_expiration and health_status == "ACTIVE":
+            remaining_seconds = int((earliest_expiration - now).total_seconds())
+            hours = remaining_seconds // 3600
+            minutes = (remaining_seconds % 3600) // 60
+            time_remaining_str = f"{hours}h {minutes}m"
+
+        return {
+            "status": health_status,
+            "file_path": "sqlite:///./humble_library.db",
+            "total_items": total_items,
+            "total_bundles": total_bundles,
+            "key_only_items": key_only_items,
+            "sync_age": sync_age_str,
+            "active_links": active_links,
+            "expired_links": expired_links,
+            "link_time_remaining": time_remaining_str,
+        }
+    finally:
+        db.close()
 
 
 def format_status_report(data: dict[str, Any]) -> str:
