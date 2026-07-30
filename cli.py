@@ -17,7 +17,6 @@ from bundle_inspector import (
     load_evaluated_bundles_log,
     log_evaluated_bundle,
     mark_expired_entries,
-    save_evaluated_bundles_log,
 )
 from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
@@ -328,10 +327,9 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                                     print(e)
 
         elif choice == "📜 View Expired Deal Reading List":
-            # Load log, mark expired entries, save, and display reading list
+            # Load log, mark expired entries, and display reading list
+            mark_expired_entries()
             entries = load_evaluated_bundles_log()
-            entries = mark_expired_entries(entries)
-            save_evaluated_bundles_log(entries)
             expired = get_expired_entries(entries)
             if not expired:
                 print("\n" + "=" * 60)

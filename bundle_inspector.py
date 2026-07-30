@@ -11,7 +11,9 @@ from typing import Any
 import requests
 from bs4 import BeautifulSoup
 
+from database import SessionLocal, init_db
 from library_duplicates import normalize_title
+from models import EvaluatedBundle
 
 
 # Browser User-Agent to avoid bot detection
@@ -26,7 +28,6 @@ _BUNDLES_URL = "https://www.humblebundle.com/bundles"
 # Default paths and TTL
 _BUNDLES_DUMP_PATH = Path("raw_bundles_dump.json")
 _CACHE_TTL_SECONDS = 3600  # 1 hour
-_EVALUATED_BUNDLES_LOG_PATH = Path("evaluated_bundles_log.json")
 
 
 def _fetch_landing_page_data() -> dict[str, Any]:
@@ -570,33 +571,32 @@ def format_deal_report(bundle_title: str, eval_data: dict[str, Any]) -> str:
 # ── Evaluated bundles log (expired deals tracking) ──────────────────────
 
 
-def load_evaluated_bundles_log(
-    path: Path = _EVALUATED_BUNDLES_LOG_PATH,
-) -> list[dict[str, Any]]:
+def load_evaluated_bundles_log() -> list[dict[str, Any]]:
     """
-    Loads the evaluated bundles log from *path*.
+    Loads all evaluated bundle records from the database.
 
-    Returns an empty list if the file does not exist or is malformed.
-    Each entry is a dict with keys: bundle_name, url, machine_name,
-    end_date, evaluated_at, expired_at, evaluation.
+    Returns:
+        List of dicts with keys: bundle_name, url, machine_name,
+        end_date, evaluated_at, expired_at, evaluation.
     """
-    if not path.exists():
-        return []
+    init_db()
+    db = SessionLocal()
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return []
-
-
-def save_evaluated_bundles_log(
-    entries: list[dict[str, Any]],
-    path: Path = _EVALUATED_BUNDLES_LOG_PATH,
-) -> None:
-    """Saves the evaluated bundles log to *path*."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(entries, f, indent=2, ensure_ascii=False)
+        records = db.query(EvaluatedBundle).all()
+        return [
+            {
+                "bundle_name": r.bundle_name,
+                "url": r.url,
+                "machine_name": r.machine_name,
+                "end_date": r.end_date,
+                "evaluated_at": r.evaluated_at,
+                "expired_at": r.expired_at,
+                "evaluation": r.evaluation,
+            }
+            for r in records
+        ]
+    finally:
+        db.close()
 
 
 def log_evaluated_bundle(
@@ -605,21 +605,17 @@ def log_evaluated_bundle(
     machine_name: str,
     end_date: str,
     eval_data: dict[str, Any],
-    path: Path = _EVALUATED_BUNDLES_LOG_PATH,
 ) -> None:
     """
-    Records or updates a bundle evaluation in the persistent log.
+    Records or updates a bundle evaluation in the database.
 
-    If an entry with the same *bundle_url* already exists, its evaluation
-    snapshot is refreshed (preserving any existing ``expired_at``).
-    Otherwise a new entry is appended.
+    If an entry with the same *bundle_url* already exists, its fields
+    are updated (preserving any existing ``expired_at``).
+    Otherwise a new ``EvaluatedBundle`` record is inserted.
     """
     now_str = datetime.now(timezone.utc).isoformat()
-    entries = load_evaluated_bundles_log(path)
 
     # Strip large / non-serialisable fields from eval_data for the log.
-    # tier_breakdown is omitted because it duplicates titles already in
-    # matched_items / new_items (just organized by tier).
     log_eval = {
         "total_items": eval_data.get("total_items"),
         "matched_count": eval_data.get("matched_count"),
@@ -629,56 +625,70 @@ def log_evaluated_bundle(
         "pricing": eval_data.get("pricing"),
     }
 
-    # Update existing entry or append new one
-    for entry in entries:
-        if entry.get("url") == bundle_url:
-            entry["bundle_name"] = bundle_name
-            entry["machine_name"] = machine_name
-            entry["end_date"] = end_date
-            entry["evaluated_at"] = now_str
-            entry["evaluation"] = log_eval
-            # Preserve expired_at if already set
-            break
-    else:
-        entries.append({
-            "bundle_name": bundle_name,
-            "url": bundle_url,
-            "machine_name": machine_name,
-            "end_date": end_date,
-            "evaluated_at": now_str,
-            "expired_at": None,
-            "evaluation": log_eval,
-        })
+    init_db()
+    db = SessionLocal()
+    try:
+        existing = db.query(EvaluatedBundle).filter(
+            EvaluatedBundle.url == bundle_url
+        ).first()
 
-    save_evaluated_bundles_log(entries, path)
+        if existing:
+            existing.bundle_name = bundle_name
+            existing.machine_name = machine_name
+            existing.end_date = end_date
+            existing.evaluated_at = now_str
+            existing.evaluation = log_eval
+        else:
+            record = EvaluatedBundle(
+                bundle_name=bundle_name,
+                url=bundle_url,
+                machine_name=machine_name,
+                end_date=end_date,
+                evaluated_at=now_str,
+                expired_at=None,
+                evaluation=log_eval,
+            )
+            db.add(record)
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
-def mark_expired_entries(
-    entries: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+def mark_expired_entries() -> None:
     """
-    Scans entries and sets ``expired_at`` on any whose ``end_date``
-    is in the past and that haven't been marked yet.
-
-    Returns the (possibly modified) list.  The caller is responsible
-    for persisting changes via save_evaluated_bundles_log().
+    Scans the database for unexpired entries whose ``end_date``
+    is in the past and sets their ``expired_at`` to the current UTC time.
     """
     now = datetime.now(timezone.utc)
-    for entry in entries:
-        if entry.get("expired_at") is not None:
-            continue  # already marked
-        end_str = entry.get("end_date", "")
-        if not end_str:
-            continue
-        try:
-            end_dt = datetime.fromisoformat(end_str)
-            if end_dt.tzinfo is None:
-                end_dt = end_dt.replace(tzinfo=timezone.utc)
-            if end_dt < now:
-                entry["expired_at"] = now.isoformat()
-        except (ValueError, TypeError):
-            continue
-    return entries
+    now_str = now.isoformat()
+    init_db()
+    db = SessionLocal()
+    try:
+        unexpired = db.query(EvaluatedBundle).filter(
+            EvaluatedBundle.expired_at.is_(None)
+        ).all()
+        for record in unexpired:
+            end_str = record.end_date
+            if not end_str:
+                continue
+            try:
+                end_dt = datetime.fromisoformat(end_str)
+                if end_dt.tzinfo is None:
+                    end_dt = end_dt.replace(tzinfo=timezone.utc)
+                if end_dt < now:
+                    record.expired_at = now_str
+            except (ValueError, TypeError):
+                continue
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 def get_expired_entries(
