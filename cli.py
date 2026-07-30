@@ -1,7 +1,9 @@
-"""CLI entrypoint for Humble Library Sync."""
+"""CLI entrypoint for Humble Library Sync featuring an interactive menu loop."""
 
 import argparse
+import sys
 from pathlib import Path
+import questionary
 
 from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
@@ -45,6 +47,49 @@ def run_duplicates(args: argparse.Namespace) -> None:
     print(report)
 
 
+def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
+    """Runs a persistent interactive terminal menu loop."""
+    while True:
+        status_data = check_status(library_path)
+        print("\n" + format_status_report(status_data) + "\n")
+
+        choice = questionary.select(
+            "Select an action:",
+            choices=[
+                "📊 View Duplicate Analysis",
+                "🔄 Sync Library (Capture & Parse)",
+                "🌐 Inspect Live Bundle (Deal Evaluator)",
+                "❌ Exit",
+            ],
+        ).ask()
+
+        if choice is None or choice == "❌ Exit":
+            print("[*] Exiting Humble Library Sync.")
+            sys.exit(0)
+
+        if choice == "📊 View Duplicate Analysis":
+            if not library_path.exists():
+                print(f"[!] {library_path} not found. Run sync first.")
+            else:
+                items, _ = load_library(library_path)
+                duplicates = find_duplicates(items)
+                print("\n" + format_duplicate_report(duplicates, len(items), str(library_path)))
+
+        elif choice == "🔄 Sync Library (Capture & Parse)":
+            dump_file = Path("raw_library_dump.json")
+            capture_library(dump_file=dump_file)
+            catalog = parse_dump(dump_file)
+            export_to_json(catalog, library_path)
+            export_to_csv(catalog, "my_library.csv")
+            export_to_txt(catalog, "my_library.txt")
+            print(f"[*] Successfully synced {catalog['metadata']['total_items']} items.")
+
+        elif choice == "🌐 Inspect Live Bundle (Deal Evaluator)":
+            print("[*] Bundle inspector module under construction...")
+
+        questionary.press_any_key_to_continue("Press any key to return to menu...").ask()
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Constructs and configures the command-line argument parser."""
     parser = argparse.ArgumentParser(
@@ -86,9 +131,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.command:
-        # Default action when no subcommand is specified
-        status_data = check_status("my_library.json")
-        print(format_status_report(status_data))
+        run_interactive_menu()
         return
 
     args.func(args)
