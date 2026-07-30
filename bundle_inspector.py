@@ -26,6 +26,7 @@ _BUNDLES_URL = "https://www.humblebundle.com/bundles"
 # Default paths and TTL
 _BUNDLES_DUMP_PATH = Path("raw_bundles_dump.json")
 _CACHE_TTL_SECONDS = 3600  # 1 hour
+_EVALUATED_BUNDLES_LOG_PATH = Path("evaluated_bundles_log.json")
 
 
 def _fetch_landing_page_data() -> dict[str, Any]:
@@ -561,6 +562,231 @@ def format_deal_report(bundle_title: str, eval_data: dict[str, Any]) -> str:
 
         if not matched_items and not new_items:
             lines.append("No items found in this bundle.")
+
+    lines.append("=" * 60)
+    return "\n".join(lines)
+
+
+# ── Evaluated bundles log (expired deals tracking) ──────────────────────
+
+
+def load_evaluated_bundles_log(
+    path: Path = _EVALUATED_BUNDLES_LOG_PATH,
+) -> list[dict[str, Any]]:
+    """
+    Loads the evaluated bundles log from *path*.
+
+    Returns an empty list if the file does not exist or is malformed.
+    Each entry is a dict with keys: bundle_name, url, machine_name,
+    end_date, evaluated_at, expired_at, evaluation.
+    """
+    if not path.exists():
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_evaluated_bundles_log(
+    entries: list[dict[str, Any]],
+    path: Path = _EVALUATED_BUNDLES_LOG_PATH,
+) -> None:
+    """Saves the evaluated bundles log to *path*."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(entries, f, indent=2, ensure_ascii=False)
+
+
+def log_evaluated_bundle(
+    bundle_name: str,
+    bundle_url: str,
+    machine_name: str,
+    end_date: str,
+    eval_data: dict[str, Any],
+    path: Path = _EVALUATED_BUNDLES_LOG_PATH,
+) -> None:
+    """
+    Records or updates a bundle evaluation in the persistent log.
+
+    If an entry with the same *bundle_url* already exists, its evaluation
+    snapshot is refreshed (preserving any existing ``expired_at``).
+    Otherwise a new entry is appended.
+    """
+    now_str = datetime.now(timezone.utc).isoformat()
+    entries = load_evaluated_bundles_log(path)
+
+    # Strip large / non-serialisable fields from eval_data for the log.
+    # tier_breakdown is omitted because it duplicates titles already in
+    # matched_items / new_items (just organized by tier).
+    log_eval = {
+        "total_items": eval_data.get("total_items"),
+        "matched_count": eval_data.get("matched_count"),
+        "overlap_percentage": eval_data.get("overlap_percentage"),
+        "matched_items": eval_data.get("matched_items", []),
+        "new_items": eval_data.get("new_items", []),
+        "pricing": eval_data.get("pricing"),
+    }
+
+    # Update existing entry or append new one
+    for entry in entries:
+        if entry.get("url") == bundle_url:
+            entry["bundle_name"] = bundle_name
+            entry["machine_name"] = machine_name
+            entry["end_date"] = end_date
+            entry["evaluated_at"] = now_str
+            entry["evaluation"] = log_eval
+            # Preserve expired_at if already set
+            break
+    else:
+        entries.append({
+            "bundle_name": bundle_name,
+            "url": bundle_url,
+            "machine_name": machine_name,
+            "end_date": end_date,
+            "evaluated_at": now_str,
+            "expired_at": None,
+            "evaluation": log_eval,
+        })
+
+    save_evaluated_bundles_log(entries, path)
+
+
+def mark_expired_entries(
+    entries: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Scans entries and sets ``expired_at`` on any whose ``end_date``
+    is in the past and that haven't been marked yet.
+
+    Returns the (possibly modified) list.  The caller is responsible
+    for persisting changes via save_evaluated_bundles_log().
+    """
+    now = datetime.now(timezone.utc)
+    for entry in entries:
+        if entry.get("expired_at") is not None:
+            continue  # already marked
+        end_str = entry.get("end_date", "")
+        if not end_str:
+            continue
+        try:
+            end_dt = datetime.fromisoformat(end_str)
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            if end_dt < now:
+                entry["expired_at"] = now.isoformat()
+        except (ValueError, TypeError):
+            continue
+    return entries
+
+
+def get_expired_entries(
+    entries: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Returns only entries that have been marked as expired."""
+    return [e for e in entries if e.get("expired_at") is not None]
+
+
+def get_unexpired_entries(
+    entries: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Returns entries that have not yet expired."""
+    now = datetime.now(timezone.utc)
+    result: list[dict[str, Any]] = []
+    for e in entries:
+        if e.get("expired_at") is not None:
+            continue
+        end_str = e.get("end_date", "")
+        if not end_str:
+            continue
+        try:
+            end_dt = datetime.fromisoformat(end_str)
+            if end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            if end_dt >= now:
+                result.append(e)
+        except (ValueError, TypeError):
+            continue
+    return result
+
+
+def format_expired_reading_list(entries: list[dict[str, Any]]) -> str:
+    """
+    Builds a deduplicated, sorted reading list of all *new* (unowned)
+    titles from expired bundle evaluations.
+
+    Args:
+        entries: List of expired log entries (from get_expired_entries()).
+
+    Returns:
+        Formatted string ready for terminal display.
+    """
+    seen: set[str] = set()
+    titles: list[str] = []
+
+    for entry in entries:
+        eval_data = entry.get("evaluation", {})
+        new_items = eval_data.get("new_items", [])
+        for title in new_items:
+            norm = title.strip().lower()
+            if norm not in seen:
+                seen.add(norm)
+                titles.append(title.strip())
+
+    titles.sort(key=str.lower)
+
+    lines = [
+        "=" * 60,
+        "EXPIRED DEAL READING LIST",
+        "=" * 60,
+    ]
+    if not titles:
+        lines.append("  No new items from expired deals recorded.")
+    else:
+        lines.append(f"  Total unique titles: {len(titles)}")
+        lines.append("-" * 60)
+        for title in titles:
+            lines.append(f"  {title}")
+    lines.append("=" * 60)
+    return "\n".join(lines)
+
+
+def format_expired_deals_report(entries: list[dict[str, Any]]) -> str:
+    """
+    Prints a summary report of expired evaluated bundles.
+
+    Args:
+        entries: List of expired log entries.
+
+    Returns:
+        Formatted string suitable for terminal display.
+    """
+    lines = [
+        "=" * 60,
+        "EXPIRED EVALUATED DEALS",
+        "=" * 60,
+    ]
+    if not entries:
+        lines.append("  No expired evaluated deals recorded.")
+        lines.append("=" * 60)
+        return "\n".join(lines)
+
+    lines.append(f"  Total expired bundles: {len(entries)}")
+    lines.append("")
+
+    for entry in entries:
+        bundle_name = entry.get("bundle_name", "Unknown")
+        end_date = entry.get("end_date", "?")[:10]
+        expired_at = entry.get("expired_at", "?")[:10]
+        eval_data = entry.get("evaluation", {})
+        new_count = len(eval_data.get("new_items", []))
+        total = eval_data.get("total_items", 0)
+        overlap = eval_data.get("overlap_percentage", 0.0)
+
+        lines.append(f"  {bundle_name}")
+        lines.append(f"    Ended: {end_date}  |  Expired: {expired_at}")
+        lines.append(f"    {new_count} new / {total} total  |  {overlap}% overlap")
 
     lines.append("=" * 60)
     return "\n".join(lines)

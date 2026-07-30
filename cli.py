@@ -10,7 +10,14 @@ from bundle_inspector import (
     evaluate_deal,
     fetch_bundle_items,
     format_deal_report,
+    format_expired_deals_report,
+    format_expired_reading_list,
+    get_expired_entries,
     load_active_bundles,
+    load_evaluated_bundles_log,
+    log_evaluated_bundle,
+    mark_expired_entries,
+    save_evaluated_bundles_log,
 )
 from capture import capture_library
 from library_duplicates import find_duplicates, format_duplicate_report, load_library
@@ -142,6 +149,7 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                 "📊 View Duplicate Analysis",
                 "🔄 Sync Library (Capture & Parse)",
                 "🌐 Inspect Live Bundle (Deal Evaluator)",
+                "📜 View Expired Deal Reading List",
                 "🔍 Search Library",
                 "❌ Exit",
             ],
@@ -254,6 +262,13 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                                     tier_item_map=bundle_data.get("tier_item_map"),
                                 )
                                 print("\n" + format_deal_report(bundle_data["bundle_name"], eval_data))
+                                log_evaluated_bundle(
+                                    bundle_data["bundle_name"],
+                                    custom_url,
+                                    bundle_data.get("machine_name", ""),
+                                    None,
+                                    eval_data,
+                                )
                                 questionary.press_any_key_to_continue("Press any key to continue...").ask()
                             except RuntimeError as e:
                                 print(e)
@@ -301,9 +316,40 @@ def run_interactive_menu(library_path: Path = Path("my_library.json")) -> None:
                                         tier_item_map=bundle_data.get("tier_item_map"),
                                     )
                                     print("\n" + format_deal_report(bundle_data["bundle_name"], eval_data))
+                                    log_evaluated_bundle(
+                                        bundle_data["bundle_name"],
+                                        bundle["url"],
+                                        bundle.get("machine_name", ""),
+                                        bundle.get("end_date", ""),
+                                        eval_data,
+                                    )
                                     questionary.press_any_key_to_continue("Press any key to return to bundle list...").ask()
                                 except RuntimeError as e:
                                     print(e)
+
+        elif choice == "📜 View Expired Deal Reading List":
+            # Load log, mark expired entries, save, and display reading list
+            entries = load_evaluated_bundles_log()
+            entries = mark_expired_entries(entries)
+            save_evaluated_bundles_log(entries)
+            expired = get_expired_entries(entries)
+            if not expired:
+                print("\n" + "=" * 60)
+                print("  No expired deals recorded yet.")
+                print("  Evaluate some bundles via the Deal Evaluator first.")
+                print("=" * 60)
+            else:
+                print("\n" + format_expired_reading_list(expired))
+                # Offer to export to txt
+                export_confirm = questionary.confirm(
+                    "Export reading list to expired_reading_list.txt?", default=False
+                ).ask()
+                if export_confirm:
+                    Path("expired_reading_list.txt").write_text(
+                        format_expired_reading_list(expired), encoding="utf-8"
+                    )
+                    print("[*] Exported to expired_reading_list.txt")
+            questionary.press_any_key_to_continue("Press any key to return to menu...").ask()
 
         elif choice == "🔍 Search Library":
             if not _ensure_library_exists(library_path, dump_path):
