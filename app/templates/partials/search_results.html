@@ -1,11 +1,22 @@
+<div class="result-list">
 {% for item in items %}
-  <div class="search-result-item">
-    <strong>{{ item.title }}</strong>
-    {% if item.bundle %}
-      <span class="bundle">{{ item.bundle.title }}</span>
-    {% endif %}
-    <span class="publisher">{{ item.publisher }}</span>
-  </div>
+  <article class="result-row" tabindex="0">
+    <div class="result-info">
+      <span class="result-title">{{ item.title }}</span>
+      <span class="result-meta">
+        {% if item.bundle %}
+          <span class="bundle">{{ item.bundle.title }}</span>
+        {% endif %}
+        <span class="publisher">{{ item.publisher }}</span>
+      </span>
+    </div>
+    <div class="result-actions">
+      {% for fmt in item.available_formats %}
+        <span class="badge">{{ fmt }}</span>
+      {% endfor %}
+    </div>
+  </article>
 {% else %}
   <p>No results found.</p>
 {% endfor %}
+</div>

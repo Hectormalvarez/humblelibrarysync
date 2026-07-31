@@ -77,45 +77,183 @@ nav a:hover {
   color: #1a1a1a;
 }
 
-/* ----- Library Search ----- */
-input[type="search"] {
+/* ----- Command Palette (Library Search) ----- */
+/*
+ * .palette-wrapper centres the command palette horizontally and constrains its
+ * width so the input doesn't stretch across the full viewport on wide screens.
+ */
+.palette-wrapper {
+  max-width: 640px;
+  margin: 0 auto;
+  margin-top: 2rem;
+}
+
+/*
+ * .search-input-wrapper establishes a relative positioning context so the
+ * inline SVG icon can be absolutely positioned inside the input.
+ */
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/*
+ * .palette-input is the actual search field.  Left-padding creates space for
+ * the magnifying-glass icon.  The border, border-radius, and box-shadow on
+ * focus give the field a "floating" command-palette appearance.
+ */
+.palette-input {
   display: block;
   width: 100%;
-  max-width: 400px;
-  margin-top: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  padding: 0.75rem 1rem 0.75rem 2.25rem; /* left padding avoids icon overlap */
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
   font-size: 1rem;
+  background: #fff;
+  outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-/* ----- Search Results ----- */
+.palette-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/*
+ * The search icon sits inside the input on the left.  pointer-events: none
+ * ensures the SVG doesn't swallow click events meant for the input element.
+ */
+.search-input-wrapper .search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.9rem;
+  height: 0.9rem;
+  color: #999;
+  pointer-events: none;
+}
+
+/* ----- Search Results (Command Palette) ----- */
+/*
+ * #search-results is the HTMX target container.  It receives the partial
+ * rendered by /library/search and replaces its contents.
+ */
 #search-results {
-  margin-top: 1rem;
+  margin-top: 0.25rem;
 }
 
-.search-result-item {
-  padding: 0.75rem 0;
-  border-bottom: 1px solid #eee;
+/*
+ * .result-list wraps every result row and applies a subtle border with
+ * rounded corners, mimicking a dropdown list that appears below the palette
+ * input.  overflow: hidden clips the corners of the first/last rows.
+ */
+.result-list {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
-.search-result-item strong {
+/*
+ * .result-row is a single search result rendered as a natively focusable
+ * <article>.  The flex layout separates metadata on the left from action
+ * badges on the right.  Hover and focus-visible transforms provide rapid
+ * visual feedback during keyboard navigation.
+ */
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.12s ease, transform 0.12s ease;
+}
+
+.result-row:last-child {
+  border-bottom: none;
+}
+
+.result-row:hover {
+  background-color: #f5f5f5;
+  /* Slight horizontal shift gives a tactile "pressed forward" feel on hover */
+  transform: translateX(3px);
+}
+
+/*
+ * focus-visible applies a soft ring when the row is focused via keyboard
+ * (Tab / Shift+Tab), which is critical for accessibility.  It does NOT
+ * apply on mouse click so the visual feedback stays reserved for keyboard
+ * users.
+ */
+.result-row:focus-visible {
+  outline: none;
+  background-color: #eef2ff;
+  box-shadow: inset 0 0 0 2px #6366f1;
+  /* Similar translateX to mirror the hover state for consistent feedback */
+  transform: translateX(3px);
+}
+
+/*
+ * .result-info groups the title, bundle, and publisher on the left-hand side
+ * so they stack vertically within the flex row.
+ */
+.result-info {
+  flex: 1;
+  min-width: 0; /* allows text truncation to work inside flex children */
+}
+
+.result-info .result-title {
   display: block;
-  margin-bottom: 0.2rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.search-result-item .bundle,
-.search-result-item .publisher {
-  font-size: 0.875rem;
-  color: #666;
+.result-info .result-meta {
+  display: block;
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.15rem;
 }
 
-.search-result-item .bundle + .publisher::before {
+.result-info .result-meta .bundle + .publisher::before {
   content: "·";
-  margin: 0 0.4rem;
+  margin: 0 0.35rem;
 }
 
+/*
+ * .result-actions right-aligns download badges or other action buttons
+ * (e.g. download counts, platform icons).  flex-shrink: 0 prevents the
+ * actions from being compressed when the title is long.
+ */
+.result-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.result-actions .badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: 4px;
+  background: #e8e8e8;
+  color: #555;
+  white-space: nowrap;
+}
+
+/* ----- Empty / Message State ----- */
 #search-results p {
   color: #888;
   font-style: italic;
+  padding: 0.75rem 1rem;
 }
