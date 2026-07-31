@@ -2,6 +2,8 @@
 Library router – serves the library search HTMX partial endpoint.
 """
 
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import distinct, func
@@ -14,6 +16,42 @@ router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
 
+# Regex to strip common Humble Bundle title prefixes for smart A-Z sorting.
+# Matches (case-insensitive):
+#   - "Humble <sub-bundle> Bundle: " (e.g. "Humble Book Bundle: ")
+#   - "Humble " (e.g. "Humble Foo")
+#   - "The " (e.g. "The Foo")
+_PREFIX_RE = re.compile(
+    r"^(?:humble\s+(?:[a-z0-9-]+\s+)?bundle:\s*|humble\s+|the\s+)",
+    re.IGNORECASE,
+)
+
+_VALID_SEARCH_SORTS = {"title_asc", "title_desc", "publisher_asc"}
+_VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc"}
+
+
+def get_sort_key(title: str) -> str:
+    """Return a lowercase, prefix-stripped title suitable for smart A-Z sorting."""
+    return _PREFIX_RE.sub("", title).strip().lower()
+
+
+def _normalize_search_sort(sort: str) -> str:
+    """Normalize a sort value for the search endpoint.
+
+    Falls back to ``title_asc`` when the value is invalid or belongs to a
+    different view (e.g. ``count_desc`` from a category tab).
+    """
+    if sort in _VALID_SEARCH_SORTS:
+        return sort
+    return "title_asc"
+
+
+def _normalize_category_sort(sort: str) -> str:
+    """Normalize a sort value for the publishers/bundles endpoints."""
+    if sort in _VALID_CATEGORY_SORTS:
+        return sort
+    return "title_asc"
+
 
 @router.get("/library/search")
 def library_search(
@@ -21,6 +59,7 @@ def library_search(
     q: str = "",
     publisher: str | None = None,
     bundle_id: int | None = None,
+    sort: str = Query("title_asc"),
     limit: int = Query(30, ge=1),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -31,6 +70,7 @@ def library_search(
     Supports optional exact-match filters for publisher and bundle_id.
     Designed for HTMX partial rendering.
     """
+    active_sort = _normalize_search_sort(sort)
     base_query = db.query(Item)
 
     # Apply strict equality filters when provided
@@ -40,6 +80,14 @@ def library_search(
         base_query = base_query.filter(Item.bundle_id == bundle_id)
     if q:
         base_query = base_query.filter(Item.title.ilike(f"%{q}%"))
+
+    # Apply sort ordering
+    if active_sort == "title_desc":
+        base_query = base_query.order_by(Item.title.desc())
+    elif active_sort == "publisher_asc":
+        base_query = base_query.order_by(Item.publisher.asc(), Item.title.asc())
+    else:
+        base_query = base_query.order_by(Item.title.asc())
 
     total_count = base_query.count()
     items = base_query.offset(offset).limit(limit).all()
@@ -93,6 +141,7 @@ def library_search(
                 "q": q,
                 "active_publisher": active_publisher,
                 "active_bundle": active_bundle,
+                "active_sort": active_sort,
             },
         )
 
@@ -109,6 +158,7 @@ def library_search(
             "bundles_summary": bundles_summary,
             "active_publisher": active_publisher,
             "active_bundle": active_bundle,
+            "active_sort": active_sort,
         },
     )
 
@@ -160,29 +210,55 @@ def library_overview(
 def library_publishers(
     request: Request,
     q: str = "",
+    sort: str = Query("title_asc"),
     db: Session = Depends(get_db),
 ):
     """
     HTMX partial endpoint – returns every publisher in the library along
-    with the total number of items attributed to it.  The results are
-    sorted in descending order of item count so the most prominent
-    publishers surface first.  The rendered partial is swapped into the
-    ``#master-stream`` container, replacing the previous view.
+    with the total number of items attributed to it.  The rendered partial
+    is swapped into the ``#master-stream`` container, replacing the
+    previous view.
     """
+    active_sort = _normalize_category_sort(sort)
     base_query = db.query(Item.publisher, func.count(Item.id).label("count"))
     if q:
         base_query = base_query.filter(Item.publisher.ilike(f"%{q}%"))
-    rows = (
-        base_query
-        .group_by(Item.publisher)
-        .order_by(func.count(Item.id).desc())
-        .all()
-    )
+
+    # Apply sort ordering
+    if active_sort == "title_desc":
+        rows = (
+            base_query
+            .group_by(Item.publisher)
+            .order_by(Item.publisher.desc())
+            .all()
+        )
+    elif active_sort == "count_desc":
+        rows = (
+            base_query
+            .group_by(Item.publisher)
+            .order_by(func.count(Item.id).desc())
+            .all()
+        )
+    elif active_sort == "count_asc":
+        rows = (
+            base_query
+            .group_by(Item.publisher)
+            .order_by(func.count(Item.id).asc())
+            .all()
+        )
+    else:  # title_asc
+        rows = (
+            base_query
+            .group_by(Item.publisher)
+            .order_by(Item.publisher.asc())
+            .all()
+        )
+
     publishers = [{"name": name, "count": count} for name, count in rows]
     return templates.TemplateResponse(
         request,
         "partials/publisher_list.html",
-        {"publishers": publishers},
+        {"publishers": publishers, "active_sort": active_sort},
     )
 
 
@@ -190,32 +266,58 @@ def library_publishers(
 def library_bundles(
     request: Request,
     q: str = "",
+    sort: str = Query("title_asc"),
     db: Session = Depends(get_db),
 ):
     """
     HTMX partial endpoint – returns every bundle in the library along
-    with the total number of items contained in it.  Bundles with more
-    items are listed first so the most content-rich bundles are at the
-    top of the stream.  The rendered partial is swapped into the
-    ``#master-stream`` container.
+    with the total number of items contained in it.  The rendered partial
+    is swapped into the ``#master-stream`` container.
     """
+    active_sort = _normalize_category_sort(sort)
     base_query = (
         db.query(Bundle.id, Bundle.title, func.count(Item.id).label("count"))
         .join(Item, Item.bundle_id == Bundle.id)
     )
     if q:
         base_query = base_query.filter(Bundle.title.ilike(f"%{q}%"))
-    rows = (
-        base_query
-        .group_by(Bundle.id)
-        .order_by(func.count(Item.id).desc())
-        .all()
-    )
-    bundles = [{"id": id, "name": name, "count": count} for id, name, count in rows]
+
+    if active_sort in ("title_asc", "title_desc"):
+        # For title sorts, fetch all rows then sort in Python using the
+        # prefix-stripping helper so "Humble Book Bundle: Foo" sorts as "foo".
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .all()
+        )
+        bundles_raw = [
+            {"id": id, "name": name, "count": count}
+            for id, name, count in rows
+        ]
+        reverse = active_sort == "title_desc"
+        bundles_raw.sort(key=lambda b: get_sort_key(b["name"]), reverse=reverse)
+        bundles = bundles_raw
+    elif active_sort == "count_asc":
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .order_by(func.count(Item.id).asc())
+            .all()
+        )
+        bundles = [{"id": id, "name": name, "count": count} for id, name, count in rows]
+    else:  # count_desc (default for category views)
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .order_by(func.count(Item.id).desc())
+            .all()
+        )
+        bundles = [{"id": id, "name": name, "count": count} for id, name, count in rows]
+
     return templates.TemplateResponse(
         request,
         "partials/bundle_list.html",
-        {"bundles": bundles},
+        {"bundles": bundles, "active_sort": active_sort},
     )
 
 

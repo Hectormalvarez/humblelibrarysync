@@ -32,7 +32,7 @@
    container rather than the viewport, so the trigger fires reliably when the
    user reaches the bottom of the list. #}
 <div class="scroll-sentinel" style="padding: 1rem; text-align: center; color: var(--color-text-muted);"
-  hx-get="/library/search?q={{ q|default('') }}{% if active_publisher %}&publisher={{ active_publisher }}{% endif %}{% if active_bundle %}&bundle_id={{ active_bundle.id }}{% endif %}&offset={{ offset + limit }}&limit={{ limit }}"
+  hx-get="/library/search?q={{ q|default('') }}{% if active_publisher %}&publisher={{ active_publisher }}{% endif %}{% if active_bundle %}&bundle_id={{ active_bundle.id }}{% endif %}&sort={{ active_sort|default('title_asc') }}&offset={{ offset + limit }}&limit={{ limit }}"
   hx-trigger="intersect once root:#master-stream rootMargin:200px"
   hx-swap="outerHTML"
   hx-target="this">Loading more items...</div>

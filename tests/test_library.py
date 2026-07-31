@@ -2,6 +2,7 @@
 Tests for the library search feature endpoints.
 """
 
+from app.routers.library import get_sort_key
 from models import Bundle, Item
 from database import SessionLocal, Base, engine, reset_database
 
@@ -1002,3 +1003,224 @@ def test_library_bundles_filtered_by_q(client):
             cleanup.commit()
         finally:
             cleanup.close()
+
+
+def test_get_sort_key_prefix_stripping():
+    """Verify that get_sort_key strips common Humble Bundle prefixes
+    and returns a lowercase, trimmed title for smart A-Z sorting."""
+    # "Humble Book Bundle: Foo" → "foo"
+    assert get_sort_key("Humble Book Bundle: Foo") == "foo"
+    # "Humble Foo" → "foo"
+    assert get_sort_key("Humble Foo") == "foo"
+    # "The Foo" → "foo"
+    assert get_sort_key("The Foo") == "foo"
+    # Case-insensitive prefix stripping
+    assert get_sort_key("HUMBLE BOOK BUNDLE: Bar") == "bar"
+    assert get_sort_key("the baz") == "baz"
+    # Plain title unchanged (but lowercased)
+    assert get_sort_key("Plain Title") == "plain title"
+    # Whitespace is trimmed
+    assert get_sort_key("  Spaced  ") == "spaced"
+
+
+def test_search_results_hidden_filter_inputs(client):
+    """Verify that search_results.html renders hidden <input> elements for
+    active publisher and bundle_id filters so the sort select's hx-include
+    can read them."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Hidden Input Bundle")
+        db.add(bundle)
+        db.flush()
+
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Hidden Input Item",
+                publisher="Hidden Input Publisher",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        # Filter by publisher — hidden publisher input must be present
+        resp = client.get("/library/search?publisher=Hidden+Input+Publisher")
+        assert resp.status_code == 200
+        assert 'name="publisher"' in resp.text
+        assert 'value="Hidden Input Publisher"' in resp.text
+        # No bundle_id input when not filtering by bundle
+        assert 'name="bundle_id"' not in resp.text
+
+        # Filter by bundle_id — hidden bundle_id input must be present
+        resp = client.get(f"/library/search?bundle_id={bundle.id}")
+        assert resp.status_code == 200
+        assert 'name="bundle_id"' in resp.text
+        assert f'value="{bundle.id}"' in resp.text
+        # No publisher input when not filtering by publisher
+        assert 'name="publisher"' not in resp.text
+
+        # No filter — neither hidden input should be present
+        resp = client.get("/library/search")
+        assert resp.status_code == 200
+        assert 'name="publisher"' not in resp.text
+        assert 'name="bundle_id"' not in resp.text
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(Item.title == "Hidden Input Item").delete()
+            cleanup.query(Bundle).filter(Bundle.title == "Hidden Input Bundle").delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
+def test_library_search_publisher_filter_and_sort_desc(client):
+    """Verify that /library/search with publisher filter and sort=title_desc
+    retains both the filter and the descending title sort."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Sort Filter Bundle")
+        db.add(bundle)
+        db.flush()
+
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Alpha Book",
+                publisher="Sort Publisher",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Zeta Book",
+                publisher="Sort Publisher",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Middle Book",
+                publisher="Sort Publisher",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        # Request with publisher filter and title_desc sort
+        resp = client.get(
+            "/library/search?publisher=Sort+Publisher&sort=title_desc"
+        )
+        assert resp.status_code == 200
+        # All three items should be present
+        assert resp.text.count('<article class="result-row"') == 3
+        # Verify descending order: Zeta before Middle before Alpha
+        zeta_pos = resp.text.index("Zeta Book")
+        middle_pos = resp.text.index("Middle Book")
+        alpha_pos = resp.text.index("Alpha Book")
+        assert zeta_pos < middle_pos < alpha_pos
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title.in_(["Alpha Book", "Zeta Book", "Middle Book"])
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title == "Sort Filter Bundle"
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
+def test_scroll_sentinel_includes_sort_parameter(client):
+    """Verify that the infinite-scroll sentinel includes the active sort
+    parameter so that subsequent pages maintain the sort order."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Sentinel Sort Bundle")
+        db.add(bundle)
+        db.flush()
+
+        for i in range(6):
+            db.add(
+                Item(
+                    bundle_id=bundle.id,
+                    title=f"Sentinel Sort Item {i}",
+                    publisher="Sentinel Sort Publisher",
+                    item_type="download",
+                    available_formats=["PDF"],
+                    downloads={},
+                )
+            )
+        db.commit()
+
+        # Request first page with sort=title_desc (limit=3 so has_more=True)
+        resp = client.get(
+            "/library/search?sort=title_desc&limit=3&offset=0"
+        )
+        assert resp.status_code == 200
+        # The sentinel hx-get must include the sort parameter
+        assert "sort=title_desc" in resp.text
+        # Verify has_more triggered the scroll sentinel
+        assert 'class="scroll-sentinel"' in resp.text
+        assert resp.text.count('<article class="result-row"') == 3
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title.like("Sentinel Sort Item%")
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title == "Sentinel Sort Bundle"
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
+def test_home_page_sync_sort_dropdown(client):
+    """Verify that home.html includes context-aware sort option definitions
+    and the syncSortDropdown JavaScript function so the sort dropdown
+    dynamically adapts to the active view (books vs. publishers/bundles)."""
+    response = client.get("/")
+    assert response.status_code == 200
+
+    # The syncSortDropdown function must be defined
+    assert "function syncSortDropdown(viewType)" in response.text
+
+    # Books view sort options
+    assert '<option value="title_asc">Title (A to Z)</option>' in response.text
+    assert '<option value="title_desc">Title (Z to A)</option>' in response.text
+    assert '<option value="publisher_asc">Publisher (A to Z)</option>' in response.text
+
+    # Category (publishers/bundles) view sort options (Name-based + counts)
+    assert '<option value="count_desc">Most Items</option>' in response.text
+    assert '<option value="count_asc">Least Items</option>' in response.text
+
+    # The function should handle the books viewType branch
+    assert "viewType === 'books'" in response.text
+    # The function should handle the publishers/bundles viewType branch
+    assert "viewType === 'publishers'" in response.text
+    assert "viewType === 'bundles'" in response.text
+
+    # The dropdown reset logic: count desc/asc → title_asc for books
+    assert "currentValue === 'count_desc'" in response.text
+    # The dropdown reset logic: publisher_asc → title_asc for categories
+    assert "currentValue === 'publisher_asc'" in response.text

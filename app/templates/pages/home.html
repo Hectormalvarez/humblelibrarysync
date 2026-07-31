@@ -29,6 +29,7 @@
           hx-get="/library/search"
           hx-trigger="input changed delay:300ms, search"
           hx-target="#master-stream"
+          hx-include="#library-sort, #master-stream"
         />
         <button
           type="button"
@@ -83,27 +84,90 @@
           data-placeholder="Search books..."
           hx-get="/library/search"
           hx-target="#master-stream"
-          hx-swap="innerHTML">📚 Books</button>
+          hx-swap="innerHTML"
+          hx-include="#library-search, #library-sort">📚 Books</button>
         <button type="button" class="mode-pill" role="tab" aria-selected="false"
           data-endpoint="/library/publishers"
           data-placeholder="Search publishers..."
           hx-get="/library/publishers"
           hx-target="#master-stream"
-          hx-swap="innerHTML">🏢 Publishers</button>
+          hx-swap="innerHTML"
+          hx-include="#library-search, #library-sort">🏢 Publishers</button>
         <button type="button" class="mode-pill" role="tab" aria-selected="false"
           data-endpoint="/library/bundles"
           data-placeholder="Search bundles..."
           hx-get="/library/bundles"
           hx-target="#master-stream"
-          hx-swap="innerHTML">📦 Bundles</button>
+          hx-swap="innerHTML"
+          hx-include="#library-search, #library-sort">📦 Bundles</button>
       </div>
+      <select id="library-sort" name="sort" class="sort-select"
+        hx-get="/library/search"
+        hx-target="#master-stream"
+        hx-swap="innerHTML"
+        hx-trigger="change"
+        hx-include="#library-search, #master-stream">
+        <option value="title_asc">Title (A to Z)</option>
+        <option value="title_desc">Title (Z to A)</option>
+        <option value="publisher_asc">Publisher (A to Z)</option>
+      </select>
       <script>
-        // Mode pill click handler: updates the search input's hx-get and
-        // placeholder to match the active tab, then re-processes HTMX so
-        // subsequent typing searches against the correct endpoint.
+        // syncSortDropdown – dynamically swaps the <option> list inside
+        // #library-sort to match the active view context (books vs.
+        // publishers/bundles).  Preserves the currently-selected value
+        // unless it is invalid for the target view, in which case it
+        // falls back to title_asc.
+        function syncSortDropdown(viewType) {
+          var sortSelect = document.getElementById('library-sort');
+          if (!sortSelect) return;
+
+          var currentValue = sortSelect.value;
+          var master = document.getElementById('master-stream');
+          var hasFilter = master && (master.querySelector('[name="publisher"]') || master.querySelector('[name="bundle_id"]'));
+
+          if (viewType === 'books') {
+            if (hasFilter) {
+              // Filtered view: all items share the same publisher/bundle,
+              // so publisher_asc is irrelevant — only title sorts shown.
+              sortSelect.innerHTML =
+                '<option value="title_asc">Title (A to Z)</option>' +
+                '<option value="title_desc">Title (Z to A)</option>';
+            } else {
+              sortSelect.innerHTML =
+                '<option value="title_asc">Title (A to Z)</option>' +
+                '<option value="title_desc">Title (Z to A)</option>' +
+                '<option value="publisher_asc">Publisher (A to Z)</option>';
+            }
+            if (currentValue === 'count_desc' || currentValue === 'count_asc' ||
+                currentValue === 'publisher_asc') {
+              sortSelect.value = 'title_asc';
+            } else {
+              sortSelect.value = currentValue;
+            }
+          } else if (viewType === 'publishers' || viewType === 'bundles') {
+            sortSelect.innerHTML =
+              '<option value="title_asc">Name (A to Z)</option>' +
+              '<option value="title_desc">Name (Z to A)</option>' +
+              '<option value="count_desc">Most Items</option>' +
+              '<option value="count_asc">Least Items</option>';
+            if (currentValue === 'publisher_asc') {
+              sortSelect.value = 'title_asc';
+            } else {
+              sortSelect.value = currentValue;
+            }
+          }
+          htmx.process(sortSelect);
+        }
+
+        // Mode pill click handler: clears any active filter state, updates
+        // the search input's and sort select's hx-get/placeholder to match
+        // the active tab, syncs the sort dropdown options, then lets HTMX
+        // fire the pill's own hx-get request.  Search text is preserved so
+        // the query carries over across tab switches.
         (function () {
           var pills = document.querySelectorAll('.mode-pill');
           var input = document.getElementById('library-search');
+          var sortSelect = document.getElementById('library-sort');
           if (!input) return;
 
           pills.forEach(function (pill) {
@@ -116,20 +180,39 @@
               this.classList.add('active');
               this.setAttribute('aria-selected', 'true');
 
-              // Update the search input to target the active tab's endpoint
+              // Determine which tab was clicked
               var endpoint = this.getAttribute('data-endpoint');
               var placeholder = this.getAttribute('data-placeholder');
+
+              // Clear active filter pill if one exists (top-level tab
+              // switch removes any drilldown filter context)
+              var filterClear = document.querySelector('.filter-clear-btn');
+              if (filterClear) {
+                // Just remove the pill visually; the content swap below
+                // will replace #master-stream anyway so the hidden inputs
+                // disappear.  Prevent the clear button's own HTMX request
+                // from racing with the tab's request.
+                var filterBar = document.querySelector('.filter-bar');
+                if (filterBar) filterBar.remove();
+              }
+
+              // Update the search input to target the active tab's endpoint
               input.setAttribute('hx-get', endpoint);
               input.setAttribute('placeholder', placeholder);
 
-              // Clear the search field when switching tabs
-              input.value = '';
+              // Map endpoint to syncSortDropdown viewType
+              var viewType = 'books';
+              if (endpoint === '/library/publishers') viewType = 'publishers';
+              else if (endpoint === '/library/bundles') viewType = 'bundles';
 
-              // Re-process HTMX so it picks up the new hx-get
+              // Sync sort dropdown options and set the sort's hx-get route
+              syncSortDropdown(viewType);
+              if (sortSelect) {
+                sortSelect.setAttribute('hx-get', endpoint);
+              }
+
+              // Re-process HTMX so it picks up the new hx-get attributes
               htmx.process(input);
-
-              // Fire an input event to refresh results for the new tab
-              input.dispatchEvent(new Event('input', { bubbles: true }));
             });
           });
         })();
@@ -182,6 +265,70 @@
       if (filterClear) {
         filterClear.click();
         return;
+      }
+    });
+  })();
+
+  // htmx:afterSwap listener on #master-stream to keep mode pills and sort
+  // endpoint in sync when content is swapped in (e.g. from drilldown clicks).
+  (function () {
+    var stream = document.getElementById('master-stream');
+    if (!stream) return;
+    stream.addEventListener('htmx:afterSwap', function (evt) {
+      var master = document.getElementById('master-stream');
+      var sortSelect = document.getElementById('library-sort');
+      var pills = document.querySelectorAll('.mode-pill');
+      if (!master || !pills.length) return;
+
+      // Detect which type of content was swapped in
+      var hasFilter = master.querySelector('[name="publisher"]') || master.querySelector('[name="bundle_id"]');
+      var hasCategoryRow = master.querySelector('.category-row');
+      var hasPublisherList = (hasCategoryRow && master.querySelector('.category-row[class*="category-row"]')
+        && master.innerHTML.indexOf('/library/search?publisher=') !== -1);
+      var hasBundleList = (hasCategoryRow && master.innerHTML.indexOf('/library/search?bundle_id=') !== -1);
+
+      // Check if the swapped content is a publisher or bundle list partial
+      var isPublisherPartial = master.querySelector('.category-row')
+        && master.innerHTML.indexOf('hx-get="/library/search?publisher=') !== -1;
+      var isBundlePartial = master.querySelector('.category-row')
+        && master.innerHTML.indexOf('hx-get="/library/search?bundle_id=') !== -1;
+
+      // Find the pill for the right mode
+      var bookPill = document.querySelector('.mode-pill[data-endpoint="/library/search"]');
+      var publisherPill = document.querySelector('.mode-pill[data-endpoint="/library/publishers"]');
+      var bundlePill = document.querySelector('.mode-pill[data-endpoint="/library/bundles"]');
+
+      function activatePill(pill) {
+        if (!pill) return;
+        pills.forEach(function (p) {
+          p.classList.remove('active');
+          p.setAttribute('aria-selected', 'false');
+        });
+        pill.classList.add('active');
+        pill.setAttribute('aria-selected', 'true');
+      }
+
+      if (isPublisherPartial) {
+        // Publisher list was swapped in
+        activatePill(publisherPill);
+        syncSortDropdown('publishers');
+        if (sortSelect) {
+          sortSelect.setAttribute('hx-get', '/library/publishers');
+        }
+      } else if (isBundlePartial) {
+        // Bundle list was swapped in
+        activatePill(bundlePill);
+        syncSortDropdown('bundles');
+        if (sortSelect) {
+          sortSelect.setAttribute('hx-get', '/library/bundles');
+        }
+      } else {
+        // Books / search results (including filtered) were swapped in
+        activatePill(bookPill);
+        syncSortDropdown('books');
+        if (sortSelect) {
+          sortSelect.setAttribute('hx-get', '/library/search');
+        }
       }
     });
   })();
