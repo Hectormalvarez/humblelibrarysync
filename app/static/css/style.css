@@ -276,22 +276,56 @@ nav a:hover {
 /*
  * #search-results is the HTMX target container.  It receives the partial
  * rendered by /library/search and replaces its contents.
+ *
+ * The fixed max-height prevents the page from jumping when results are
+ * swapped in via HTMX – without it the container would grow/shrink with
+ * every keystroke, causing disruptive layout shifts.
  */
 #search-results {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  padding-right: var(--space-2);
   margin-top: 0.25rem;
-}
-
-/*
- * .result-list wraps every result row and applies a subtle border with
- * rounded corners, mimicking a dropdown list that appears below the palette
- * input.  overflow: hidden clips the corners of the first/last rows.
- */
-.result-list {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
-  overflow: hidden;
   box-shadow: var(--shadow-md);
+}
+
+/*
+ * Custom scrollbar styling for the search results container.
+ * Thin, subtle scrollbar that blends with the palette border colour.
+ */
+#search-results::-webkit-scrollbar {
+  width: 6px;
+}
+
+#search-results::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#search-results::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+#search-results::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+/* Standard (Firefox) scrollbar: thin, track matches container background */
+#search-results {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/*
+ * .result-list wraps every result row.  The border, radius, and shadow
+ * live on the parent #search-results so the scroll container clips
+ * everything cleanly without glitching the bottom border.
+ */
+.result-list {
+  /* no border/radius/shadow – delegated to #search-results */
 }
 
 /*
@@ -358,11 +392,6 @@ nav a:hover {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   margin-top: 0.15rem;
-}
-
-.result-info .result-meta .bundle + .publisher::before {
-  content: "·";
-  margin: 0 0.35rem;
 }
 
 /*
