@@ -183,32 +183,61 @@ def export_to_txt(catalog: dict[str, Any], output_file: str | Path) -> None:
 
 
 def sync_catalog_to_db(catalog_data: dict[str, Any]) -> None:
-    """Syncs parsed catalog data into the database, replacing all existing records."""
+    """Syncs parsed catalog data into the database using upsert logic for idempotency.
+
+    This function can be safely re-run without creating duplicates:
+    - Existing bundles are matched by title
+    - Existing items are matched by (bundle_id, title) combination
+    - If a match is found, the record is updated; otherwise, a new record is created
+    """
     init_db()
     db = SessionLocal()
     try:
-        db.query(Bundle).delete()
         bundles_by_title: dict[str, list[dict]] = {}
         for item in catalog_data["items"]:
             bundle_title = item["bundle"]
             bundles_by_title.setdefault(bundle_title, []).append(item)
 
         for bundle_title, items in bundles_by_title.items():
-            bundle = Bundle(
-                title=bundle_title,
-                purchase_date=items[0].get("purchase_date"),
-                captured_at=items[0].get("captured_at"),
-            )
-            for item_data in items:
-                item = Item(
-                    title=item_data["title"],
-                    publisher=item_data.get("publisher", "Unknown"),
-                    item_type=item_data.get("type", "download"),
-                    available_formats=item_data.get("available_formats", []),
-                    downloads=item_data.get("downloads", {}),
+            # Upsert bundle: check if bundle with this title already exists
+            bundle = db.query(Bundle).filter_by(title=bundle_title).first()
+            if bundle:
+                # Update existing bundle metadata
+                bundle.purchase_date = items[0].get("purchase_date")
+                bundle.captured_at = items[0].get("captured_at")
+            else:
+                # Create new bundle
+                bundle = Bundle(
+                    title=bundle_title,
+                    purchase_date=items[0].get("purchase_date"),
+                    captured_at=items[0].get("captured_at"),
                 )
-                bundle.items.append(item)
-            db.add(bundle)
+                db.add(bundle)
+                db.flush()  # Get the bundle.id for item association
+
+            for item_data in items:
+                # Upsert item: check if item with this title already exists in this bundle
+                existing_item = db.query(Item).filter_by(
+                    bundle_id=bundle.id,
+                    title=item_data["title"]
+                ).first()
+
+                if existing_item:
+                    # Update existing item
+                    existing_item.publisher = item_data.get("publisher", "Unknown")
+                    existing_item.item_type = item_data.get("type", "download")
+                    existing_item.available_formats = item_data.get("available_formats", [])
+                    existing_item.downloads = item_data.get("downloads", {})
+                else:
+                    # Create new item
+                    new_item = Item(
+                        title=item_data["title"],
+                        publisher=item_data.get("publisher", "Unknown"),
+                        item_type=item_data.get("type", "download"),
+                        available_formats=item_data.get("available_formats", []),
+                        downloads=item_data.get("downloads", {}),
+                    )
+                    bundle.items.append(new_item)
 
         db.commit()
     except Exception:

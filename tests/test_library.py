@@ -3,7 +3,7 @@ Tests for the library search feature endpoints.
 """
 
 from models import Bundle, Item
-from database import SessionLocal, Base, engine
+from database import SessionLocal, Base, engine, reset_database
 
 
 def test_library_search_endpoint(client):
@@ -225,6 +225,45 @@ def test_library_overview_endpoint(client):
         finally:
             cleanup.close()
 
+
+def test_reset_database():
+    """Verify that reset_database() cleanly clears all rows across all tables."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        # Add some test data
+        bundle = Bundle(title="Reset Test Bundle")
+        db.add(bundle)
+        db.flush()
+
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Reset Test Item",
+                publisher="Reset Press",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        # Verify data exists
+        assert db.query(Bundle).count() > 0
+        assert db.query(Item).count() > 0
+    finally:
+        db.close()
+
+    # Call reset_database()
+    reset_database()
+
+    # Verify all tables are empty
+    db = SessionLocal()
+    try:
+        assert db.query(Bundle).count() == 0
+        assert db.query(Item).count() == 0
+    finally:
+        db.close()
 
 def test_get_publishers_stream(client):
     """Verify the /library/publishers endpoint returns HTTP 200 and

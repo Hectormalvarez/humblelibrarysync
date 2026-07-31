@@ -21,6 +21,16 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
 
 
+def reset_database() -> None:
+    """Drop all tables and recreate them with a fresh schema.
+
+    This is useful for development, testing, or when a clean slate is needed
+    before re-syncing data. All existing data will be lost.
+    """
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:

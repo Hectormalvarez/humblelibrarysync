@@ -23,7 +23,7 @@ from library_duplicates import find_duplicates, format_duplicate_report, load_li
 from parse import export_to_csv, export_to_json, export_to_txt, parse_dump, sync_catalog_to_db
 from search import format_search_results, live_search_prompt, search_catalog
 from status import check_status, format_status_report
-from database import SessionLocal
+from database import SessionLocal, reset_database
 from models import Item
 
 
@@ -41,7 +41,7 @@ def run_status(args: argparse.Namespace) -> None:
 def run_capture(args: argparse.Namespace) -> None:
     """Executes the capture pipeline to log raw network responses."""
     capture_library(
-        dump_file=args.dump,
+        dump_file=args.output,
         auth_file=args.auth,
         headless=args.headless,
     )
@@ -49,6 +49,11 @@ def run_capture(args: argparse.Namespace) -> None:
 
 def run_parse(args: argparse.Namespace) -> None:
     """Executes parser engine, persists to database, and optionally exports files."""
+    # If --reset flag is provided, clear the database before syncing
+    if getattr(args, "reset", False):
+        reset_database()
+        print("[*] Database reset complete.")
+
     catalog = parse_dump(args.dump)
     sync_catalog_to_db(catalog)
     print(f"[*] Parsed {catalog['metadata']['total_items']} items into database.")
@@ -408,19 +413,46 @@ def build_parser() -> argparse.ArgumentParser:
     status_parser.add_argument("--input", type=Path, default=None, help="Ignored; status reads from the SQLite database.")
     status_parser.set_defaults(func=run_status)
 
-    # Capture subcommand
-    cap_parser = subparsers.add_parser("capture", help="Intercept raw API data from Humble Bundle.")
-    cap_parser.add_argument("--dump", type=Path, default=Path("raw_library_dump.json"), help="Output JSONL dump path.")
+    # Capture subcommand - Stage 1 of the two-stage pipeline
+    cap_parser = subparsers.add_parser(
+        "capture",
+        help="Stage 1: Fetch and save raw library payload to a JSON file.",
+        description="Capture raw library data from Humble Bundle API and save it to a JSON file. "
+                    "This is the first stage of the two-stage pipeline. The output file can then "
+                    "be processed by the 'parse' subcommand.",
+    )
+    cap_parser.add_argument(
+        "--output", "-o",
+        type=Path,
+        default=Path("raw_library_dump.json"),
+        help="Output path for the raw JSON dump (default: raw_library_dump.json).",
+    )
     cap_parser.add_argument("--auth", type=Path, default=Path("auth.json"), help="Saved auth state path.")
     cap_parser.add_argument("--headless", action="store_true", help="Run browser without GUI.")
     cap_parser.set_defaults(func=run_capture)
 
-    # Parse subcommand
-    parse_parser = subparsers.add_parser("parse", help="Parse raw dump into structured catalog files.")
-    parse_parser.add_argument("--dump", type=Path, default=Path("raw_library_dump.json"), help="Input dump path.")
+    # Parse subcommand - Stage 2 of the two-stage pipeline
+    parse_parser = subparsers.add_parser(
+        "parse",
+        help="Stage 2: Ingest a raw JSON dump into the database.",
+        description="Parse a raw JSON dump file and import it into the database. "
+                    "This is the second stage of the two-stage pipeline. Use 'capture' first "
+                    "to generate the raw dump file.",
+    )
+    parse_parser.add_argument(
+        "--dump", "-d",
+        type=Path,
+        default=Path("raw_library_dump.json"),
+        help="Path to the input JSON dump file (default: raw_library_dump.json).",
+    )
     parse_parser.add_argument("--json-out", type=Path, default=Path("my_library.json"), help="Output JSON path.")
     parse_parser.add_argument("--csv-out", type=Path, default=Path("my_library.csv"), help="Output CSV path.")
     parse_parser.add_argument("--txt-out", type=Path, default=Path("my_library.txt"), help="Output TXT path.")
+    parse_parser.add_argument(
+        "--reset", "-r",
+        action="store_true",
+        help="Reset (drop and recreate) the database before syncing.",
+    )
     parse_parser.set_defaults(func=run_parse)
 
     # Duplicates subcommand
