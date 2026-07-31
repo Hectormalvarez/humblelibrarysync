@@ -74,3 +74,56 @@ def library_search(
             "bundles_summary": bundles_summary,
         },
     )
+
+
+@router.get("/library/publishers")
+def library_publishers(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    HTMX partial endpoint – returns every publisher in the library along
+    with the total number of items attributed to it.  The results are
+    sorted in descending order of item count so the most prominent
+    publishers surface first.  The rendered partial is swapped into the
+    ``#master-stream`` container, replacing the previous view.
+    """
+    rows = (
+        db.query(Item.publisher, func.count(Item.id).label("count"))
+        .group_by(Item.publisher)
+        .order_by(func.count(Item.id).desc())
+        .all()
+    )
+    publishers = [{"name": name, "count": count} for name, count in rows]
+    return templates.TemplateResponse(
+        request,
+        "partials/publisher_list.html",
+        {"publishers": publishers},
+    )
+
+
+@router.get("/library/bundles")
+def library_bundles(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    HTMX partial endpoint – returns every bundle in the library along
+    with the total number of items contained in it.  Bundles with more
+    items are listed first so the most content-rich bundles are at the
+    top of the stream.  The rendered partial is swapped into the
+    ``#master-stream`` container.
+    """
+    rows = (
+        db.query(Bundle.title, func.count(Item.id).label("count"))
+        .join(Item, Item.bundle_id == Bundle.id)
+        .group_by(Bundle.id)
+        .order_by(func.count(Item.id).desc())
+        .all()
+    )
+    bundles = [{"name": name, "count": count} for name, count in rows]
+    return templates.TemplateResponse(
+        request,
+        "partials/bundle_list.html",
+        {"bundles": bundles},
+    )

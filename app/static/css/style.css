@@ -696,6 +696,40 @@ nav a:hover {
   color: var(--color-text-muted);
 }
 
+/* ----- Category Rows (Publishers / Bundles Streams) ----- */
+/*
+ * .category-row is a single row in the Publishers or Bundles stream
+ * view.  It mirrors the layout tokens of .result-row (flex layout,
+ * spacing, hover translate) so the user gets a consistent tactile
+ * experience whether they're scanning items or jumping between
+ * category groups.  Each row is wired up via HTMX so a click (or
+ * keyboard activation) swaps the filtered items into #master-stream.
+ */
+.category-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.category-row:hover {
+  background-color: var(--color-bg-surface);
+}
+
+.category-row .count-badge {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
 /* ----- Empty / Message State ----- */
 #search-results p {
   color: var(--color-text-muted);

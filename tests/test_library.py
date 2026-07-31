@@ -162,3 +162,138 @@ def test_home_page_search_uses_input_event(client):
     response = client.get("/")
     assert response.status_code == 200
     assert 'hx-trigger="input changed delay:300ms"' in response.text
+
+
+def test_get_publishers_stream(client):
+    """Verify the /library/publishers endpoint returns HTTP 200 and
+    renders aggregated item counts grouped by publisher."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Publishers Test Bundle")
+        db.add(bundle)
+        db.flush()
+
+        for _ in range(3):
+            db.add(
+                Item(
+                    bundle_id=bundle.id,
+                    title="Publisher Row A",
+                    publisher="No Starch Press",
+                    item_type="download",
+                    available_formats=["PDF"],
+                    downloads={},
+                )
+            )
+        for _ in range(2):
+            db.add(
+                Item(
+                    bundle_id=bundle.id,
+                    title="Publisher Row B",
+                    publisher="O'Reilly Media",
+                    item_type="ebook",
+                    available_formats=["EPUB"],
+                    downloads={},
+                )
+            )
+        db.commit()
+    finally:
+        db.close()
+
+    try:
+        resp = client.get("/library/publishers")
+        assert resp.status_code == 200
+        publishers = resp.context["publishers"]
+        names = [p["name"] for p in publishers]
+        counts = {p["name"]: p["count"] for p in publishers}
+        assert "No Starch Press" in names
+        assert "O'Reilly Media" in names
+        assert counts["No Starch Press"] == 3
+        assert counts["O'Reilly Media"] == 2
+        # Ordered descending by count
+        assert counts[names[0]] >= counts[names[1]]
+        # HTMX wiring: each row should target /library/search with the
+        # publisher's name and swap into #master-stream.
+        assert "category-row" in resp.text
+        assert "No Starch Press" in resp.text
+        assert "3 items" in resp.text
+    finally:
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title.in_(["Publisher Row A", "Publisher Row B"])
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title == "Publishers Test Bundle"
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
+def test_get_bundles_stream(client):
+    """Verify the /library/bundles endpoint returns HTTP 200 and
+    renders aggregated item counts grouped by bundle."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle_x = Bundle(title="Bundle X")
+        bundle_y = Bundle(title="Bundle Y")
+        db.add_all([bundle_x, bundle_y])
+        db.flush()
+
+        for _ in range(4):
+            db.add(
+                Item(
+                    bundle_id=bundle_x.id,
+                    title="Bundle X Item",
+                    publisher="Publisher X",
+                    item_type="download",
+                    available_formats=["PDF"],
+                    downloads={},
+                )
+            )
+        for _ in range(1):
+            db.add(
+                Item(
+                    bundle_id=bundle_y.id,
+                    title="Bundle Y Item",
+                    publisher="Publisher Y",
+                    item_type="ebook",
+                    available_formats=["EPUB"],
+                    downloads={},
+                )
+            )
+        db.commit()
+    finally:
+        db.close()
+
+    try:
+        resp = client.get("/library/bundles")
+        assert resp.status_code == 200
+        bundles = resp.context["bundles"]
+        names = [b["name"] for b in bundles]
+        counts = {b["name"]: b["count"] for b in bundles}
+        assert "Bundle X" in names
+        assert "Bundle Y" in names
+        assert counts["Bundle X"] == 4
+        assert counts["Bundle Y"] == 1
+        # Ordered descending by count
+        assert counts[names[0]] >= counts[names[1]]
+        # HTMX wiring: each row should target /library/search with the
+        # bundle's name and swap into #master-stream.
+        assert "category-row" in resp.text
+        assert "Bundle X" in resp.text
+        assert "4 items" in resp.text
+    finally:
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title.in_(["Bundle X Item", "Bundle Y Item"])
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title.in_(["Bundle X", "Bundle Y"])
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()

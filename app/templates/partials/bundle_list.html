@@ -1,0 +1,20 @@
+<div class="result-list">
+  {# Category stream: clicking a bundle row filters the master stream
+     by that bundle's name via the /library/search endpoint, swapping
+     the matching items into #master-stream. #}
+  {% for bundle in bundles %}
+  <article class="category-row" tabindex="0"
+    hx-get="/library/search?q={{ bundle.name|urlencode }}"
+    hx-target="#master-stream"
+    hx-swap="innerHTML">
+    <div class="result-info">
+      <span class="result-title">{{ bundle.name }}</span>
+    </div>
+    <div class="result-actions">
+      <span class="badge">{{ bundle.count }} item{% if bundle.count != 1 %}s{% endif %}</span>
+    </div>
+  </article>
+  {% else %}
+    <p>No bundles found.</p>
+  {% endfor %}
+</div>

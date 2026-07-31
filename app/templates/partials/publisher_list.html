@@ -1,0 +1,20 @@
+<div class="result-list">
+  {# Category stream: clicking a publisher row filters the master
+     stream by that publisher's name via the /library/search endpoint,
+     swapping the matching items into #master-stream. #}
+  {% for publisher in publishers %}
+  <article class="category-row" tabindex="0"
+    hx-get="/library/search?q={{ publisher.name|urlencode }}"
+    hx-target="#master-stream"
+    hx-swap="innerHTML">
+    <div class="result-info">
+      <span class="result-title">{{ publisher.name }}</span>
+    </div>
+    <div class="result-actions">
+      <span class="badge">{{ publisher.count }} item{% if publisher.count != 1 %}s{% endif %}</span>
+    </div>
+  </article>
+  {% else %}
+    <p>No publishers found.</p>
+  {% endfor %}
+</div>

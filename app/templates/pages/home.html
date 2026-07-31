@@ -81,15 +81,18 @@
         <button type="button" class="mode-pill active" role="tab" aria-selected="true"
           hx-get="/library/search"
           hx-target="#master-stream"
-          hx-swap="innerHTML">📚 Books</button>
+          hx-swap="innerHTML"
+          hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); this.classList.add('active');">📚 Books</button>
         <button type="button" class="mode-pill" role="tab" aria-selected="false"
           hx-get="/library/publishers"
           hx-target="#master-stream"
-          hx-swap="innerHTML">🏢 Publishers</button>
+          hx-swap="innerHTML"
+          hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); this.classList.add('active');">🏢 Publishers</button>
         <button type="button" class="mode-pill" role="tab" aria-selected="false"
           hx-get="/library/bundles"
           hx-target="#master-stream"
-          hx-swap="innerHTML">📦 Bundles</button>
+          hx-swap="innerHTML"
+          hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); this.classList.add('active');">📦 Bundles</button>
       </div>
       <div class="filter-bar"></div>
     </div>
