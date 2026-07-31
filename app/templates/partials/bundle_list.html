@@ -1,17 +1,16 @@
 <div class="result-list">
   {# Category stream: clicking a bundle row filters the master stream
-     by that bundle's name via the /library/search endpoint, swapping
-     the matching items into #master-stream. #}
+     by that bundle's name.  HTMX navigation is temporarily disabled –
+     the row is rendered as a plain (non-clickable) element so the
+     layout/styling can be validated independently of the network
+     behaviour. #}
   {% for bundle in bundles %}
-  <article class="category-row" tabindex="0"
-    hx-get="/library/search?q={{ bundle.name|urlencode }}"
-    hx-target="#master-stream"
-    hx-swap="innerHTML">
+  <article class="category-row" tabindex="0">
     <div class="result-info">
       <span class="result-title">{{ bundle.name }}</span>
     </div>
     <div class="result-actions">
-      <span class="badge">{{ bundle.count }} item{% if bundle.count != 1 %}s{% endif %}</span>
+      <span class="count-badge">{{ bundle.count }} item{% if bundle.count != 1 %}s{% endif %}</span>
     </div>
   </article>
   {% else %}
