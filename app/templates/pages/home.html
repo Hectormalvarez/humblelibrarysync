@@ -29,6 +29,10 @@
           hx-get="/library/search"
           hx-trigger="input changed delay:300ms, search"
           hx-target="#master-stream"
+          {# Typing a title search automatically reverts the active
+             mode-switcher pill back to 'Books' so the segmented
+             control stays in sync with the search-results stream. #}
+          hx-on:input="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); document.querySelector('.mode-pill[role=\'tab\']').classList.add('active');"
         />
         <button
           type="button"
