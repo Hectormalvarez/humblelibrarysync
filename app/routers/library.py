@@ -34,5 +34,11 @@ def library_search(
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
-        {"items": items, "limit": limit, "offset": offset, "has_more": has_more},
+        {
+            "items": items,
+            "limit": limit,
+            "offset": offset,
+            "has_more": has_more,
+            "q": q,
+        },
     )
