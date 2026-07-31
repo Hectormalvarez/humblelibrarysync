@@ -25,10 +25,32 @@
       autocomplete="off"
       autofocus
       hx-get="/library/search"
-      hx-trigger="keyup changed delay:300ms"
+      hx-trigger="input changed delay:300ms"
       hx-target="#search-results"
     />
   </div>
   <div id="search-results"></div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var input = document.querySelector('.palette-input');
+  var results = document.getElementById('search-results');
+  if (!input || !results) return;
+
+  input.addEventListener('blur', function () {
+    setTimeout(function () { results.style.display = 'none'; }, 200);
+  });
+
+  input.addEventListener('focus', function () {
+    results.style.display = '';
+  });
+
+  document.body.addEventListener('htmx:afterSwap', function (evt) {
+    if (evt.detail.target && evt.detail.target.id === 'search-results') {
+      results.style.display = '';
+    }
+  });
+});
+</script>
 {% endblock %}

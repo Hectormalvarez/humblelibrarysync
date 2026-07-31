@@ -207,12 +207,63 @@ nav {
 }
 
 nav a {
-  font-weight: 500;
-  color: var(--color-text-secondary);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
 }
 
 nav a:hover {
+  color: var(--color-accent);
+}
+
+/* ----- Stats Bar (Dashboard Summary) ----- */
+/*
+ * .stats-bar is a compact inline banner that sits above the command palette
+ * on the root page.  It displays the total item count and database status
+ * without adding vertical bulk.
+ */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-1);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.stat-item strong {
+  font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.stat-divider {
+  width: 1px;
+  height: 1rem;
+  background: var(--color-border);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+.status-ok {
+  color: #16a34a;
 }
 
 /* ----- Command Palette (Library Search) ----- */
