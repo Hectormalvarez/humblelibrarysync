@@ -27,3 +27,6 @@ expired_reading_list.txt
 .playwright/
 auth.json
 raw_library_dump.json
+
+# cline rules
+.clinerules/*

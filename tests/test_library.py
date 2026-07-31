@@ -837,3 +837,150 @@ def test_search_results_contain_inspector_htmx_triggers(client):
             cleanup.commit()
         finally:
             cleanup.close()
+
+
+def test_library_publishers_filtered_by_q(client):
+    """Verify that /library/publishers?q=... returns only publisher rows
+    whose name matches the search query (case-insensitive substring)."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Publisher Filter Bundle")
+        db.add(bundle)
+        db.flush()
+
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Item Alpha",
+                publisher="Alpha Press",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Item Beta",
+                publisher="Beta Books",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        # Filter for "Alpha" – should return only Alpha Press
+        resp = client.get("/library/publishers?q=Alpha")
+        assert resp.status_code == 200
+        publishers = resp.context["publishers"]
+        names = [p["name"] for p in publishers]
+        assert names == ["Alpha Press"]
+
+        # Filter for "beta" (case-insensitive) – should return only Beta Books
+        resp = client.get("/library/publishers?q=beta")
+        assert resp.status_code == 200
+        publishers = resp.context["publishers"]
+        names = [p["name"] for p in publishers]
+        assert names == ["Beta Books"]
+
+        # Empty query – should return all publishers
+        resp = client.get("/library/publishers")
+        assert resp.status_code == 200
+        publishers = resp.context["publishers"]
+        names = [p["name"] for p in publishers]
+        assert "Alpha Press" in names
+        assert "Beta Books" in names
+
+        # No match – should return empty list
+        resp = client.get("/library/publishers?q=Nonexistent")
+        assert resp.status_code == 200
+        assert resp.context["publishers"] == []
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title.in_(["Item Alpha", "Item Beta"])
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title == "Publisher Filter Bundle"
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
+def test_library_bundles_filtered_by_q(client):
+    """Verify that /library/bundles?q=... returns only bundle rows
+    whose title matches the search query (case-insensitive substring)."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle_x = Bundle(title="Xenon Bundle")
+        bundle_y = Bundle(title="Yttrium Bundle")
+        db.add_all([bundle_x, bundle_y])
+        db.flush()
+
+        db.add(
+            Item(
+                bundle_id=bundle_x.id,
+                title="Xenon Item",
+                publisher="Publisher X",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.add(
+            Item(
+                bundle_id=bundle_y.id,
+                title="Yttrium Item",
+                publisher="Publisher Y",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        # Filter for "xenon" (case-insensitive) – should return only Xenon Bundle
+        resp = client.get("/library/bundles?q=xenon")
+        assert resp.status_code == 200
+        bundles = resp.context["bundles"]
+        names = [b["name"] for b in bundles]
+        assert names == ["Xenon Bundle"]
+
+        # Filter for "Yttrium" – should return only Yttrium Bundle
+        resp = client.get("/library/bundles?q=Yttrium")
+        assert resp.status_code == 200
+        bundles = resp.context["bundles"]
+        names = [b["name"] for b in bundles]
+        assert names == ["Yttrium Bundle"]
+
+        # Empty query – should return all bundles
+        resp = client.get("/library/bundles")
+        assert resp.status_code == 200
+        bundles = resp.context["bundles"]
+        names = [b["name"] for b in bundles]
+        assert "Xenon Bundle" in names
+        assert "Yttrium Bundle" in names
+
+        # No match – should return empty list
+        resp = client.get("/library/bundles?q=Nonexistent")
+        assert resp.status_code == 200
+        assert resp.context["bundles"] == []
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title.in_(["Xenon Item", "Yttrium Item"])
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title.in_(["Xenon Bundle", "Yttrium Bundle"])
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()

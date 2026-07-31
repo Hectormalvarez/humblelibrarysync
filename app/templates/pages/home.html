@@ -23,16 +23,12 @@
           type="search"
           class="palette-input"
           name="q"
-          placeholder="Search your library..."
+          placeholder="Search books..."
           autocomplete="off"
           autofocus
           hx-get="/library/search"
           hx-trigger="input changed delay:300ms, search"
           hx-target="#master-stream"
-          {# Typing a title search automatically reverts the active
-             mode-switcher pill back to 'Books' so the segmented
-             control stays in sync with the search-results stream. #}
-          hx-on:input="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); document.querySelector('.mode-pill[role=\'tab\']').classList.add('active');"
         />
         <button
           type="button"
@@ -83,21 +79,61 @@
       </script>
       <div class="mode-switcher" role="tablist" aria-label="Library view">
         <button type="button" class="mode-pill active" role="tab" aria-selected="true"
+          data-endpoint="/library/search"
+          data-placeholder="Search books..."
           hx-get="/library/search"
           hx-target="#master-stream"
-          hx-swap="innerHTML"
-          hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); this.classList.add('active');">📚 Books</button>
+          hx-swap="innerHTML">📚 Books</button>
         <button type="button" class="mode-pill" role="tab" aria-selected="false"
+          data-endpoint="/library/publishers"
+          data-placeholder="Search publishers..."
           hx-get="/library/publishers"
           hx-target="#master-stream"
-          hx-swap="innerHTML"
-          hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); this.classList.add('active');">🏢 Publishers</button>
+          hx-swap="innerHTML">🏢 Publishers</button>
         <button type="button" class="mode-pill" role="tab" aria-selected="false"
+          data-endpoint="/library/bundles"
+          data-placeholder="Search bundles..."
           hx-get="/library/bundles"
           hx-target="#master-stream"
-          hx-swap="innerHTML"
-          hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); this.classList.add('active');">📦 Bundles</button>
+          hx-swap="innerHTML">📦 Bundles</button>
       </div>
+      <script>
+        // Mode pill click handler: updates the search input's hx-get and
+        // placeholder to match the active tab, then re-processes HTMX so
+        // subsequent typing searches against the correct endpoint.
+        (function () {
+          var pills = document.querySelectorAll('.mode-pill');
+          var input = document.getElementById('library-search');
+          if (!input) return;
+
+          pills.forEach(function (pill) {
+            pill.addEventListener('click', function () {
+              // Update active class and aria-selected on all pills
+              pills.forEach(function (p) {
+                p.classList.remove('active');
+                p.setAttribute('aria-selected', 'false');
+              });
+              this.classList.add('active');
+              this.setAttribute('aria-selected', 'true');
+
+              // Update the search input to target the active tab's endpoint
+              var endpoint = this.getAttribute('data-endpoint');
+              var placeholder = this.getAttribute('data-placeholder');
+              input.setAttribute('hx-get', endpoint);
+              input.setAttribute('placeholder', placeholder);
+
+              // Clear the search field when switching tabs
+              input.value = '';
+
+              // Re-process HTMX so it picks up the new hx-get
+              htmx.process(input);
+
+              // Fire an input event to refresh results for the new tab
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+          });
+        })();
+      </script>
       <div class="filter-bar"></div>
     </div>
 

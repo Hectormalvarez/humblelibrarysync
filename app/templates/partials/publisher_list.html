@@ -6,7 +6,7 @@
     hx-get="/library/search?publisher={{ publisher.name | urlencode }}"
     hx-target="#master-stream"
     hx-swap="innerHTML"
-    hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); document.querySelector('.mode-pill[role=\'tab\']').classList.add('active'); hx.ajax('GET', '/library/overview', '#inspector-drawer');">
+    hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); var bp=document.querySelector('.mode-pill[role=\'tab\']'); bp.classList.add('active'); bp.setAttribute('aria-selected','true'); var si=document.getElementById('library-search'); if(si){si.value=''; si.setAttribute('hx-get', bp.getAttribute('data-endpoint')); si.setAttribute('placeholder', bp.getAttribute('data-placeholder')); htmx.process(si);} hx.ajax('GET', '/library/overview', '#inspector-drawer');">
     <div class="result-info">
       <span class="result-title">{{ publisher.name }}</span>
     </div>

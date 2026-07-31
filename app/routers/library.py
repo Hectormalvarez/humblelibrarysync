@@ -159,6 +159,7 @@ def library_overview(
 @router.get("/library/publishers")
 def library_publishers(
     request: Request,
+    q: str = "",
     db: Session = Depends(get_db),
 ):
     """
@@ -168,8 +169,11 @@ def library_publishers(
     publishers surface first.  The rendered partial is swapped into the
     ``#master-stream`` container, replacing the previous view.
     """
+    base_query = db.query(Item.publisher, func.count(Item.id).label("count"))
+    if q:
+        base_query = base_query.filter(Item.publisher.ilike(f"%{q}%"))
     rows = (
-        db.query(Item.publisher, func.count(Item.id).label("count"))
+        base_query
         .group_by(Item.publisher)
         .order_by(func.count(Item.id).desc())
         .all()
@@ -185,6 +189,7 @@ def library_publishers(
 @router.get("/library/bundles")
 def library_bundles(
     request: Request,
+    q: str = "",
     db: Session = Depends(get_db),
 ):
     """
@@ -194,9 +199,14 @@ def library_bundles(
     top of the stream.  The rendered partial is swapped into the
     ``#master-stream`` container.
     """
-    rows = (
+    base_query = (
         db.query(Bundle.id, Bundle.title, func.count(Item.id).label("count"))
         .join(Item, Item.bundle_id == Bundle.id)
+    )
+    if q:
+        base_query = base_query.filter(Bundle.title.ilike(f"%{q}%"))
+    rows = (
+        base_query
         .group_by(Bundle.id)
         .order_by(func.count(Item.id).desc())
         .all()
