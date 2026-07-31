@@ -1,73 +1,96 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="stats-bar">
-  <span class="stat-item">
-    <strong>{{ item_count }}</strong> Total library items:
-  </span>
-  <span class="stat-divider"></span>
-  <span class="stat-item status-ok">
-    <span class="status-dot"></span>
-    Database connected
-  </span>
-</div>
+<div class="app-workspace">
+  <div class="master-pane">
+    <div class="control-bar">
+      <div class="search-input-wrapper">
+        <svg
+          class="search-icon"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          id="library-search"
+          type="search"
+          class="palette-input"
+          name="q"
+          placeholder="Search your library..."
+          autocomplete="off"
+          autofocus
+          hx-get="/library/search"
+          hx-trigger="input changed delay:300ms, search"
+          hx-target="#master-stream"
+        />
+        <button
+          type="button"
+          class="search-clear"
+          aria-label="Clear search"
+          hidden
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <script>
+        // Custom clear button: the native type="search" × is too small to
+        // click reliably, so we render our own and wire it to clear the input
+        // and dispatch an `input` event so HTMX re-fires the search request.
+        (function () {
+          var input = document.getElementById("library-search");
+          var btn = document.querySelector(".search-clear");
+          if (!input || !btn) return;
 
-<div
-  id="master-stream"
-  class="stream-container"
-  hx-get="/library/search"
-  hx-trigger="load"
-></div>
+          function syncVisibility() {
+            btn.hidden = input.value.length === 0;
+          }
 
-<div class="palette-wrapper">
-  <div class="search-input-wrapper">
-    <svg
-      class="search-icon"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-    <input
-      type="search"
-      class="palette-input"
-      name="q"
-      placeholder="Search your library..."
-      autocomplete="off"
-      autofocus
+          input.addEventListener("input", syncVisibility);
+          input.addEventListener("search", syncVisibility);
+          syncVisibility();
+
+          btn.addEventListener("click", function () {
+            input.value = "";
+            syncVisibility();
+            input.focus();
+            // Dispatching a real input event lets HTMX's `input changed`
+            // trigger fire with the cleared value, refreshing the results.
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+          });
+        })();
+      </script>
+      <div class="filter-bar"></div>
+    </div>
+
+    <div
+      id="master-stream"
+      class="stream-container"
       hx-get="/library/search"
-      hx-trigger="input changed delay:300ms"
-      hx-target="#search-results"
-    />
+      hx-trigger="load"
+    ></div>
   </div>
-  <div id="search-results"></div>
+
+  <div class="inspector-pane">
+    <aside id="inspector-drawer" class="drawer-container"></aside>
+    <footer class="status-footer"></footer>
+  </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  var input = document.querySelector('.palette-input');
-  var results = document.getElementById('search-results');
-  if (!input || !results) return;
-
-  input.addEventListener('blur', function () {
-    setTimeout(function () { results.style.display = 'none'; }, 200);
-  });
-
-  input.addEventListener('focus', function () {
-    results.style.display = '';
-  });
-
-  document.body.addEventListener('htmx:afterSwap', function (evt) {
-    if (evt.detail.target && evt.detail.target.id === 'search-results') {
-      results.style.display = '';
-    }
-  });
-});
-</script>
 {% endblock %}
