@@ -14,4 +14,7 @@ def test_home_page_renders(client):
     """Verify the / endpoint renders the Jinja2 template successfully."""
     response = client.get("/")
     assert response.status_code == 200
-    assert "Total library items:" in response.text
+    # The home page now renders the two-pane workspace, not the old
+    # dashboard stats bar, so assert on the current layout elements.
+    assert 'class="app-workspace"' in response.text
+    assert 'id="inspector-drawer"' in response.text
