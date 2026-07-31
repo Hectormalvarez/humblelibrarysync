@@ -11,3 +11,5 @@ sqlalchemy>=2.0.0
 fastapi
 uvicorn[standard]
 jinja2
+pytest
+httpx
