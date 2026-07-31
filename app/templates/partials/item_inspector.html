@@ -51,18 +51,23 @@
 
   <section class="inspector-downloads">
     <h3 class="format-heading">Downloads</h3>
-    {# `item.downloads` is a JSON dict of platform/format keys to URLs.
-       Render each entry as an anchor so users can copy the link or
-       open the resource.  Falls back to a friendly message when empty. #}
+    {# `item.downloads` is a JSON dict where keys are format names (e.g. "pdf", "epub")
+       and values are download objects containing `url` (direct link) and `human_size`
+       (human-readable file size like "12.3 MB").  Each entry is rendered as a card
+       with the format name, file size, and a direct download button. #}
     {% if item.downloads %}
-    <ul class="download-links">
-      {% for key, url in item.downloads.items() %}
-      <li class="download-link-item">
-        <span class="download-key">{{ key }}</span>
-        <a class="download-link" href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ url }}</a>
-      </li>
+    <div class="download-cards">
+      {% for format, info in item.downloads.items() %}
+      {# Unpack the download object: info.url is the direct link, info.human_size is the formatted size #}
+      <div class="download-card">
+        <div class="download-info">
+          <span class="download-format">{{ format | upper }}</span>
+          <span class="download-size">{{ info.human_size or '' }}</span>
+        </div>
+        <a href="{{ info.url }}" target="_blank" rel="noopener noreferrer" class="download-btn">Download</a>
+      </div>
       {% endfor %}
-    </ul>
+    </div>
     {% else %}
     <p class="format-empty">No download links recorded yet.</p>
     {% endif %}

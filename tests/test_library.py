@@ -364,7 +364,8 @@ def test_get_bundles_stream(client):
 def test_get_item_inspector_detail(client):
     """Verify the /library/items/{item_id} endpoint returns HTTP 200
     and renders the full item detail partial, including the title,
-    publisher, bundle, item type, and the available format badges.
+    publisher, bundle, item type, the available format badges, and
+    structured download cards with direct action buttons.
     """
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -373,6 +374,7 @@ def test_get_item_inspector_detail(client):
         db.add(bundle)
         db.flush()
 
+        # Downloads are now structured objects with url and human_size keys
         item = Item(
             bundle_id=bundle.id,
             title="Inspector Test Book",
@@ -380,8 +382,8 @@ def test_get_item_inspector_detail(client):
             item_type="ebook",
             available_formats=["PDF", "EPUB"],
             downloads={
-                "pdf": "https://example.com/test.pdf",
-                "epub": "https://example.com/test.epub",
+                "pdf": {"url": "https://example.com/test.pdf", "human_size": "12.3 MB"},
+                "epub": {"url": "https://example.com/test.epub", "human_size": "4.5 MB"},
             },
         )
         db.add(item)
@@ -407,6 +409,15 @@ def test_get_item_inspector_detail(client):
         assert "drawer-close" in resp.text
         assert 'hx-get="/library/overview"' in resp.text
         assert 'hx-target="#inspector-drawer"' in resp.text
+        # Structured download cards with direct action buttons
+        assert "download-card" in resp.text
+        assert "download-btn" in resp.text
+        # URLs are rendered in href attributes, not as raw JSON
+        assert 'href="https://example.com/test.pdf"' in resp.text
+        assert 'href="https://example.com/test.epub"' in resp.text
+        # Human-readable file sizes are displayed
+        assert "12.3 MB" in resp.text
+        assert "4.5 MB" in resp.text
     finally:
         cleanup = SessionLocal()
         try:
