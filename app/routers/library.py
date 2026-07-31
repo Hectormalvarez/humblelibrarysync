@@ -1,5 +1,5 @@
 """
-Library router – serves the library search page with HTMX-powered partial updates.
+Library router – serves the library search HTMX partial endpoint.
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -12,17 +12,6 @@ from models import Item
 router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
-
-
-@router.get("/library")
-def library_page(request: Request):
-    """
-    Renders the main library search page.
-    """
-    return templates.TemplateResponse(
-        request,
-        "pages/library.html",
-    )
 
 
 @router.get("/library/search")
