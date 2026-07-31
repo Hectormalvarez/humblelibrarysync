@@ -358,3 +358,63 @@ def test_get_bundles_stream(client):
             cleanup.commit()
         finally:
             cleanup.close()
+
+
+def test_get_item_inspector_detail(client):
+    """Verify the /library/items/{item_id} endpoint returns HTTP 200
+    and renders the full item detail partial, including the title,
+    publisher, bundle, item type, and the available format badges.
+    """
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Inspector Test Bundle")
+        db.add(bundle)
+        db.flush()
+
+        item = Item(
+            bundle_id=bundle.id,
+            title="Inspector Test Book",
+            publisher="Inspector Press",
+            item_type="ebook",
+            available_formats=["PDF", "EPUB"],
+            downloads={
+                "pdf": "https://example.com/test.pdf",
+                "epub": "https://example.com/test.epub",
+            },
+        )
+        db.add(item)
+        db.commit()
+        item_id = item.id
+        bundle_title = bundle.title
+    finally:
+        db.close()
+
+    try:
+        resp = client.get(f"/library/items/{item_id}")
+        assert resp.status_code == 200
+        # Metadata fields rendered into the partial
+        assert "Inspector Test Book" in resp.text
+        assert "Inspector Press" in resp.text
+        assert bundle_title in resp.text
+        assert "ebook" in resp.text
+        # Format availability badges
+        assert "PDF" in resp.text
+        assert "EPUB" in resp.text
+        assert "badge-list" in resp.text
+        # Drawer close button wiring
+        assert "drawer-close" in resp.text
+        assert 'hx-get="/library/overview"' in resp.text
+        assert 'hx-target="#inspector-drawer"' in resp.text
+    finally:
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title == "Inspector Test Book"
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title == "Inspector Test Bundle"
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()

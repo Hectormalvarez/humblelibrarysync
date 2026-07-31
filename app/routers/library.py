@@ -2,7 +2,7 @@
 Library router – serves the library search HTMX partial endpoint.
 """
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
@@ -169,4 +169,36 @@ def library_bundles(
         request,
         "partials/bundle_list.html",
         {"bundles": bundles},
+    )
+
+
+@router.get("/library/items/{item_id}")
+def library_item_detail(
+    request: Request,
+    item_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    HTMX partial endpoint – returns the full detail view for a single
+    ``Item`` (publisher, bundle, type, available formats, and download
+    keys/links).  The item is fetched with a join to its parent ``Bundle``
+    so the template can render the bundle title without an extra query.
+    Returns HTTP 404 when the requested item does not exist.  The rendered
+    partial is swapped into the ``#inspector-drawer`` container.
+    """
+    # Join Bundle so the template can access `item.bundle.title` without a
+    # lazy-load round trip.  `first()` returns None if no row matches.
+    item = (
+        db.query(Item)
+        .join(Bundle, Item.bundle_id == Bundle.id)
+        .filter(Item.id == item_id)
+        .first()
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    return templates.TemplateResponse(
+        request,
+        "partials/item_inspector.html",
+        {"item": item},
     )

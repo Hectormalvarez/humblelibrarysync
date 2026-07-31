@@ -1,0 +1,70 @@
+{# Item detail inspector – rendered into #inspector-drawer by GET /library/items/{item_id}. #}
+<div class="inspector-detail">
+  <header class="inspector-header">
+    <h2 class="inspector-title">{{ item.title }}</h2>
+    {# The close (✕) button swaps the drawer back to the default library
+       overview via an HTMX GET request, replacing this partial's HTML
+       with the contents of /library/overview. #}
+    <button class="drawer-close"
+      hx-get="/library/overview"
+      hx-target="#inspector-drawer"
+      hx-swap="innerHTML"
+      aria-label="Close inspector">✕</button>
+  </header>
+
+  <section class="inspector-meta">
+    <dl class="meta-list">
+      <div class="meta-row">
+        <dt class="meta-label">Publisher</dt>
+        <dd class="meta-value">{{ item.publisher }}</dd>
+      </div>
+      <div class="meta-row">
+        <dt class="meta-label">Bundle</dt>
+        <dd class="meta-value">
+          {% if item.bundle %}{{ item.bundle.title }}{% else %}—{% endif %}
+        </dd>
+      </div>
+      <div class="meta-row">
+        <dt class="meta-label">Item Type</dt>
+        <dd class="meta-value">{{ item.item_type }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="inspector-formats">
+    <h3 class="format-heading">Available Formats</h3>
+    {# Reuse the global .badge styles; format-specific modifiers (PDF,
+       EPUB, MOBI) pick up their dedicated colour tokens automatically. #}
+    {% if item.available_formats %}
+    <ul class="badge-list">
+      {% for fmt in item.available_formats %}
+      {% set fmt_key = fmt|lower %}
+      <li>
+        <span class="badge{% if fmt_key == 'pdf' %} badge--pdf{% elif fmt_key == 'epub' %} badge--epub{% elif fmt_key == 'mobi' %} badge--mobi{% endif %}">{{ fmt }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="format-empty">No formats available for this item.</p>
+    {% endif %}
+  </section>
+
+  <section class="inspector-downloads">
+    <h3 class="format-heading">Downloads</h3>
+    {# `item.downloads` is a JSON dict of platform/format keys to URLs.
+       Render each entry as an anchor so users can copy the link or
+       open the resource.  Falls back to a friendly message when empty. #}
+    {% if item.downloads %}
+    <ul class="download-links">
+      {% for key, url in item.downloads.items() %}
+      <li class="download-link-item">
+        <span class="download-key">{{ key }}</span>
+        <a class="download-link" href="{{ url }}" target="_blank" rel="noopener noreferrer">{{ url }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="format-empty">No download links recorded yet.</p>
+    {% endif %}
+  </section>
+</div>
