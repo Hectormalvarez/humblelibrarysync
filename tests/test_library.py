@@ -570,6 +570,59 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
             cleanup.close()
 
 
+def test_search_results_render_active_filter_badge(client):
+    """Verify that filtering by publisher renders a clearable filter pill
+    at the top of the search results showing the active filter value."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Filter Badge Bundle")
+        db.add(bundle)
+        db.flush()
+
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Filter Badge Item",
+                publisher="Filter Badge Publisher",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        # Filter by publisher - should render the filter pill
+        resp = client.get("/library/search?publisher=Filter+Badge+Publisher")
+        assert resp.status_code == 200
+        assert "filter-bar" in resp.text
+        assert "filter-pill" in resp.text
+        assert "Filtered by: Filter Badge Publisher" in resp.text
+        assert "filter-clear-btn" in resp.text
+        # Clear button should target /library/search to reset the filter
+        assert 'hx-get="/library/search"' in resp.text
+
+        # Filter by bundle_id - should render the filter pill with bundle title
+        resp_bundle = client.get(f"/library/search?bundle_id={bundle.id}")
+        assert resp_bundle.status_code == 200
+        assert "filter-bar" in resp_bundle.text
+        assert "Filtered by: Filter Badge Bundle" in resp_bundle.text
+
+        # No filter - should NOT render the filter bar
+        resp_no_filter = client.get("/library/search")
+        assert resp_no_filter.status_code == 200
+        assert "filter-bar" not in resp_no_filter.text
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(Item.title == "Filter Badge Item").delete()
+            cleanup.query(Bundle).filter(Bundle.title == "Filter Badge Bundle").delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
 def test_category_row_htmx_drilldown_attributes(client):
     """Verify that publisher and bundle list partials contain the expected
     HTMX drilldown attributes on each .category-row, targeting /library/search

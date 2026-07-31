@@ -45,6 +45,12 @@ def library_search(
     items = base_query.offset(offset).limit(limit).all()
     has_more = (offset + len(items)) < total_count
 
+    # Resolve active filter objects for the filter pill header
+    active_publisher = publisher
+    active_bundle = None
+    if bundle_id is not None:
+        active_bundle = db.query(Bundle).filter(Bundle.id == bundle_id).first()
+
     # Initial page load state (empty search, first page): aggregate top
     # publishers and bundles so the home page can show category stats.
     if q == "" and publisher is None and bundle_id is None and offset == 0:
@@ -84,6 +90,8 @@ def library_search(
             "q": q,
             "publishers_summary": publishers_summary,
             "bundles_summary": bundles_summary,
+            "active_publisher": active_publisher,
+            "active_bundle": active_bundle,
         },
     )
 
