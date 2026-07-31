@@ -912,6 +912,24 @@ def test_library_publishers_filtered_by_q(client):
             cleanup.close()
 
 
+def test_home_page_escape_key_cascade(client):
+    """Verify that the home page contains a global Escape key listener
+    implementing a 3-tier cancellation cascade: clear search, close
+    inspector drawer, and clear active filter."""
+    response = client.get("/")
+    assert response.status_code == 200
+    # The global keydown listener must be present
+    assert "document.addEventListener('keydown'" in response.text
+    # Escape key check
+    assert "'Escape'" in response.text
+    # Tier 1: references #library-search
+    assert "getElementById('library-search')" in response.text
+    # Tier 2: references .drawer-close inside #inspector-drawer
+    assert "#inspector-drawer .drawer-close" in response.text
+    # Tier 3: references .filter-clear-btn
+    assert ".filter-clear-btn" in response.text
+
+
 def test_library_bundles_filtered_by_q(client):
     """Verify that /library/bundles?q=... returns only bundle rows
     whose title matches the search query (case-insensitive substring)."""

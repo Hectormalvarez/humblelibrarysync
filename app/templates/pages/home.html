@@ -150,4 +150,40 @@
     <footer class="status-footer"></footer>
   </div>
 </div>
+<script>
+  // Global Escape key shortcut: 3-tier cancellation cascade.
+  // Tier 1 – Open inspector drawer: click .drawer-close to reset to overview.
+  // Tier 2 – Active search: clear #library-search and fire HTMX input event.
+  // Tier 3 – Active filter pill: click .filter-clear-btn to remove filters.
+  (function () {
+    document.addEventListener('keydown', function (event) {
+      var key = event.key;
+      if (key !== 'Escape' && key !== 'Esc') return;
+
+      // Tier 1: inspector drawer is open (contains a close button)
+      var drawerClose = document.querySelector('#inspector-drawer .drawer-close');
+      if (drawerClose) {
+        drawerClose.click();
+        return;
+      }
+
+      var searchInput = document.getElementById('library-search');
+
+      // Tier 2: search input has value or is focused
+      if (searchInput && (searchInput.value.length > 0 || document.activeElement === searchInput)) {
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        searchInput.blur();
+        return;
+      }
+
+      // Tier 3: active filter pill is present
+      var filterClear = document.querySelector('.filter-clear-btn');
+      if (filterClear) {
+        filterClear.click();
+        return;
+      }
+    });
+  })();
+</script>
 {% endblock %}
