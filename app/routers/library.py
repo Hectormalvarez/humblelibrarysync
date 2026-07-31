@@ -4,10 +4,11 @@ Library router – serves the library search HTMX partial endpoint.
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from models import Item
+from models import Bundle, Item
 
 router = APIRouter()
 
@@ -31,6 +32,35 @@ def library_search(
     total_count = base_query.count()
     items = base_query.offset(offset).limit(limit).all()
     has_more = (offset + len(items)) < total_count
+
+    # Initial page load state (empty search, first page): aggregate top
+    # publishers and bundles so the home page can show category stats.
+    if q == "" and offset == 0:
+        publisher_rows = (
+            db.query(Item.publisher, func.count(Item.id).label("count"))
+            .group_by(Item.publisher)
+            .order_by(func.count(Item.id).desc())
+            .limit(5)
+            .all()
+        )
+        bundle_rows = (
+            db.query(Bundle.title, func.count(Item.id).label("count"))
+            .join(Item, Item.bundle_id == Bundle.id)
+            .group_by(Bundle.id)
+            .order_by(func.count(Item.id).desc())
+            .limit(5)
+            .all()
+        )
+        publishers_summary = [
+            {"name": name, "count": count} for name, count in publisher_rows
+        ]
+        bundles_summary = [
+            {"name": name, "count": count} for name, count in bundle_rows
+        ]
+    else:
+        publishers_summary = []
+        bundles_summary = []
+
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
@@ -40,5 +70,7 @@ def library_search(
             "offset": offset,
             "has_more": has_more,
             "q": q,
+            "publishers_summary": publishers_summary,
+            "bundles_summary": bundles_summary,
         },
     )

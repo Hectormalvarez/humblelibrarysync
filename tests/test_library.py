@@ -60,6 +60,79 @@ def test_library_search_pagination(client):
             db_cleanup.close()
 
 
+def test_library_search_initial_load_aggregations(client):
+    """Verify that an empty search at offset=0 returns top publisher and
+    bundle aggregations in the template context."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle_a = Bundle(title="Bundle A")
+        bundle_b = Bundle(title="Bundle B")
+        db.add_all([bundle_a, bundle_b])
+        db.flush()
+
+        for i in range(3):
+            db.add(
+                Item(
+                    bundle_id=bundle_a.id,
+                    title=f"Bundle A Item {i}",
+                    publisher="Publisher One",
+                    item_type="download",
+                    available_formats=["PDF"],
+                    downloads={},
+                )
+            )
+        for i in range(2):
+            db.add(
+                Item(
+                    bundle_id=bundle_b.id,
+                    title=f"Bundle B Item {i}",
+                    publisher="Publisher Two",
+                    item_type="ebook",
+                    available_formats=["EPUB"],
+                    downloads={},
+                )
+            )
+        db.commit()
+
+        # Initial load state (empty query, offset=0) → aggregations present
+        resp = client.get("/library/search")
+        assert resp.status_code == 200
+        assert resp.context["publishers_summary"][0] == {
+            "name": "Publisher One",
+            "count": 3,
+        }
+        assert resp.context["bundles_summary"][0] == {"name": "Bundle A", "count": 3}
+        assert len(resp.context["publishers_summary"]) == 2
+        assert len(resp.context["bundles_summary"]) == 2
+
+        # Non-empty query → aggregations empty
+        resp = client.get("/library/search?q=Bundle")
+        assert resp.status_code == 200
+        assert resp.context["publishers_summary"] == []
+        assert resp.context["bundles_summary"] == []
+
+        # offset > 0 → aggregations empty
+        resp = client.get("/library/search?limit=1&offset=1")
+        assert resp.status_code == 200
+        assert resp.context["publishers_summary"] == []
+        assert resp.context["bundles_summary"] == []
+    finally:
+        db.close()
+        # Clean up test data
+        db_cleanup = SessionLocal()
+        try:
+            db_cleanup.query(Item).filter(
+                Item.title.like("Bundle % Item%")
+            ).delete()
+            db_cleanup.query(Bundle).filter(
+                Bundle.title.in_(["Bundle A", "Bundle B"])
+            ).delete()
+            db_cleanup.commit()
+        finally:
+            db_cleanup.close()
+
+
 def test_home_page_search_uses_input_event(client):
     """Verify the home page search input uses the 'input' event for
     HTMX triggers so that deletions, cuts, pastes, and clear-button
