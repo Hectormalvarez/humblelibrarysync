@@ -788,27 +788,45 @@ nav a:hover {
  * background, hairline border, and soft shadow from the design tokens to
  * read as a raised card against the app background, with the large value
  * as the primary visual anchor.
+ *
+ * `justify-content: space-between` spreads the label and value apart, and
+ * the fixed `min-height` keeps every card the same size so the values
+ * align on a shared baseline even when a label wraps to two lines.
  */
 .stat-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4);
+  justify-content: space-between;
+  padding: var(--space-3);
+  min-height: 5.25rem;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
 
-.stat-label {
-  font-size: var(--text-xs);
-  font-weight: 500;
+/*
+ * .stat-card .stat-label is the uppercase metric name above the value.
+ * The slightly smaller font size and tighter (but not cramped) letter
+ * spacing keep labels like "TOTAL PUBLISHERS" on a single line inside
+ * the card width.
+ */
+.stat-card .stat-label {
+  font-size: 0.68rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
+  line-height: 1.2;
 }
 
-.stat-value {
+/*
+ * .stat-card .stat-value is the large numeric metric.  `margin-top: auto`
+ * pins it to the bottom of the card so numbers across all three cards
+ * line up horizontally regardless of how tall each label is.
+ */
+.stat-card .stat-value {
+  margin-top: auto;
   font-size: var(--text-2xl);
   font-weight: 700;
   line-height: 1.2;
