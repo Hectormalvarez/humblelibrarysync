@@ -1,0 +1,41 @@
+<div class="overview-container">
+  <header class="overview-header">
+    <h2 class="overview-title">Library Overview</h2>
+    <p class="overview-subtitle">A snapshot of your Humble library at a glance.</p>
+  </header>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-label">Total Books</span>
+      <span class="stat-value">{{ total_items }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Total Publishers</span>
+      <span class="stat-value">{{ total_publishers }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Total Bundles</span>
+      <span class="stat-value">{{ total_bundles }}</span>
+    </div>
+  </div>
+
+  <section class="format-breakdown">
+    <h3 class="format-heading">Formats</h3>
+    {% if format_breakdown %}
+    <ul class="format-list">
+      {% for fmt in format_breakdown %}
+      <li class="format-row">
+        <span class="format-name">{{ fmt.format }}</span>
+        <span class="format-count">{{ fmt.count }} item{% if fmt.count != 1 %}s{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="format-empty">No formats recorded yet.</p>
+    {% endif %}
+  </section>
+
+  <p class="overview-hint">
+    Select any title from the stream to inspect file formats and details.
+  </p>
+</div>

@@ -161,7 +161,68 @@ def test_home_page_search_uses_input_event(client):
     clicks all fire a search request."""
     response = client.get("/")
     assert response.status_code == 200
-    assert 'hx-trigger="input changed delay:300ms"' in response.text
+    assert 'hx-trigger="input changed delay:300ms, search"' in response.text
+
+
+def test_library_overview_endpoint(client):
+    """Verify the /library/overview endpoint returns HTTP 200 and passes
+    aggregate library metrics (total items, publishers, bundles, and
+    per-format counts) into the template context."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Overview Test Bundle")
+        db.add(bundle)
+        db.flush()
+
+        for i in range(3):
+            db.add(
+                Item(
+                    bundle_id=bundle.id,
+                    title=f"Overview Item {i}",
+                    publisher="Overview Press",
+                    item_type="download",
+                    available_formats=["PDF", "EPUB"],
+                    downloads={},
+                )
+            )
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Overview eBook",
+                publisher="Another Press",
+                item_type="ebook",
+                available_formats=["EPUB"],
+                downloads={},
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    try:
+        resp = client.get("/library/overview")
+        assert resp.status_code == 200
+        assert resp.context["total_items"] == 4
+        assert resp.context["total_publishers"] == 2
+        assert resp.context["total_bundles"] == 1
+        # Format counts: 3 PDFs, 4 EPUBs
+        formats = {f["format"]: f["count"] for f in resp.context["format_breakdown"]}
+        assert formats["PDF"] == 3
+        assert formats["EPUB"] == 4
+        assert "Library Overview" in resp.text
+        assert "stat-card" in resp.text
+        assert "format-breakdown" in resp.text
+    finally:
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(Item.title.like("Overview%")).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title == "Overview Test Bundle"
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
 
 
 def test_get_publishers_stream(client):

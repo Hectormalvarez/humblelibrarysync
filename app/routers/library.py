@@ -4,7 +4,7 @@ Library router – serves the library search HTMX partial endpoint.
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func
+from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
@@ -72,6 +72,49 @@ def library_search(
             "q": q,
             "publishers_summary": publishers_summary,
             "bundles_summary": bundles_summary,
+        },
+    )
+
+
+@router.get("/library/overview")
+def library_overview(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    HTMX partial endpoint – returns aggregate library metrics (total items,
+    total publishers, total bundles, and per-format availability) for the
+    default right inspector pane. The rendered partial is swapped into the
+    ``#inspector-drawer`` container on page load.
+    """
+    total_items = db.query(func.count(Item.id)).scalar() or 0
+    total_publishers = db.query(func.count(distinct(Item.publisher))).scalar() or 0
+    total_bundles = db.query(func.count(Bundle.id)).scalar() or 0
+
+    # Count items per format by scanning the available_formats JSON arrays
+    # in Python. This keeps the query portable across SQL backends (SQLite
+    # stores JSON columns as text, so backend-specific JSON functions would
+    # otherwise be needed).
+    format_counts: dict[str, int] = {}
+    for (formats,) in db.query(Item.available_formats).all():
+        for fmt in formats or []:
+            format_counts[fmt] = format_counts.get(fmt, 0) + 1
+
+    format_breakdown = [
+        {"format": fmt, "count": format_counts[fmt]}
+        for fmt in sorted(
+            format_counts, key=lambda f: (-format_counts[f], f)
+        )
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "partials/library_overview.html",
+        {
+            "total_items": total_items,
+            "total_publishers": total_publishers,
+            "total_bundles": total_bundles,
+            "format_breakdown": format_breakdown,
         },
     )
 
