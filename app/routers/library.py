@@ -19,6 +19,8 @@ templates = Jinja2Templates(directory="app/templates")
 def library_search(
     request: Request,
     q: str = "",
+    publisher: str | None = None,
+    bundle_id: int | None = None,
     limit: int = Query(30, ge=1),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -26,16 +28,26 @@ def library_search(
     """
     HTMX partial endpoint – searches items by title (case-insensitive) and
     returns a fragment of HTML to be swapped into the search-results container.
+    Supports optional exact-match filters for publisher and bundle_id.
     Designed for HTMX partial rendering.
     """
-    base_query = db.query(Item).filter(Item.title.ilike(f"%{q}%"))
+    base_query = db.query(Item)
+
+    # Apply strict equality filters when provided
+    if publisher is not None:
+        base_query = base_query.filter(Item.publisher == publisher)
+    if bundle_id is not None:
+        base_query = base_query.filter(Item.bundle_id == bundle_id)
+    if q:
+        base_query = base_query.filter(Item.title.ilike(f"%{q}%"))
+
     total_count = base_query.count()
     items = base_query.offset(offset).limit(limit).all()
     has_more = (offset + len(items)) < total_count
 
     # Initial page load state (empty search, first page): aggregate top
     # publishers and bundles so the home page can show category stats.
-    if q == "" and offset == 0:
+    if q == "" and publisher is None and bundle_id is None and offset == 0:
         publisher_rows = (
             db.query(Item.publisher, func.count(Item.id).label("count"))
             .group_by(Item.publisher)

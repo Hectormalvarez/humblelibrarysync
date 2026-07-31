@@ -471,6 +471,105 @@ def test_get_item_inspector_detail(client):
             cleanup.close()
 
 
+def test_library_search_exact_publisher_and_bundle_filter(client):
+    """Verify that filtering by publisher or bundle_id returns only exact
+    matches for those fields, demonstrating strict equality filter behavior."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle_a = Bundle(title="Filter Bundle A")
+        bundle_b = Bundle(title="Filter Bundle B")
+        db.add_all([bundle_a, bundle_b])
+        db.flush()
+
+        # Items with different publishers and bundles
+        db.add(
+            Item(
+                bundle_id=bundle_a.id,
+                title="Filter Test Item 1",
+                publisher="Publisher Alpha",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.add(
+            Item(
+                bundle_id=bundle_a.id,
+                title="Filter Test Item 2",
+                publisher="Publisher Beta",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.add(
+            Item(
+                bundle_id=bundle_b.id,
+                title="Filter Test Item 3",
+                publisher="Publisher Alpha",
+                item_type="ebook",
+                available_formats=["EPUB"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        # Filter by publisher only - should return items from both bundles
+        # but only with the exact publisher match
+        resp = client.get("/library/search?publisher=Publisher Alpha")
+        assert resp.status_code == 200
+        assert resp.text.count('<article class="result-row"') == 2
+        assert "Filter Test Item 1" in resp.text
+        assert "Filter Test Item 3" in resp.text
+        assert "Filter Test Item 2" not in resp.text
+
+        # Filter by bundle_id only - should return items only from that bundle
+        resp = client.get(f"/library/search?bundle_id={bundle_a.id}")
+        assert resp.status_code == 200
+        assert resp.text.count('<article class="result-row"') == 2
+        assert "Filter Test Item 1" in resp.text
+        assert "Filter Test Item 2" in resp.text
+        assert "Filter Test Item 3" not in resp.text
+
+        # Filter by both publisher and bundle_id - should return only items
+        # matching both criteria
+        resp = client.get(
+            f"/library/search?publisher=Publisher Alpha&bundle_id={bundle_a.id}"
+        )
+        assert resp.status_code == 200
+        assert resp.text.count('<article class="result-row"') == 1
+        assert "Filter Test Item 1" in resp.text
+
+        # Filter by publisher with no matches
+        resp = client.get("/library/search?publisher=Nonexistent Publisher")
+        assert resp.status_code == 200
+        assert resp.text.count('<article class="result-row"') == 0
+
+        # Combine q search with publisher filter
+        resp = client.get("/library/search?q=Item 1&publisher=Publisher Alpha")
+        assert resp.status_code == 200
+        assert resp.text.count('<article class="result-row"') == 1
+        assert "Filter Test Item 1" in resp.text
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title.in_([
+                    "Filter Test Item 1",
+                    "Filter Test Item 2",
+                    "Filter Test Item 3",
+                ])
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title.in_(["Filter Bundle A", "Filter Bundle B"])
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
 def test_search_results_contain_inspector_htmx_triggers(client):
     """Verify that search result rows contain HTMX attributes that load
     item details into #inspector-drawer on click.  Each .result-row (or
