@@ -39,31 +39,50 @@ def run_status(args: argparse.Namespace) -> None:
 
 
 def run_capture(args: argparse.Namespace) -> None:
-    """Executes the capture pipeline to log raw network responses."""
+    """Executes the capture pipeline to log raw network responses.
+
+    This subcommand ONLY performs network fetching and saves raw data to a JSON file.
+    It does NOT interact with the database or trigger any parsing.
+    """
+    print(f"[*] Starting capture to: {args.output}")
     capture_library(
         dump_file=args.output,
         auth_file=args.auth,
         headless=args.headless,
     )
+    print(f"[*] Capture complete. Raw dump saved to: {args.output}")
 
 
 def run_parse(args: argparse.Namespace) -> None:
-    """Executes parser engine, persists to database, and optionally exports files."""
+    """Executes parser engine, persists to database, and optionally exports files.
+
+    This subcommand ONLY ingests a local JSON file into SQLite.
+    It does NOT perform any network operations or require auth cookies.
+    """
     # If --reset flag is provided, clear the database before syncing
     if getattr(args, "reset", False):
+        print("[*] Resetting database...")
         reset_database()
         print("[*] Database reset complete.")
 
+    print(f"[*] Reading dump file: {args.dump}")
     catalog = parse_dump(args.dump)
+    total_items = catalog["metadata"]["total_items"]
+    print(f"[*] Found {total_items} items in dump file.")
+
+    print("[*] Syncing catalog to database...")
     sync_catalog_to_db(catalog)
-    print(f"[*] Parsed {catalog['metadata']['total_items']} items into database.")
+    print(f"[*] Successfully imported {total_items} items into database.")
 
     # Only write output files if explicit CLI output flags were provided (not defaults)
     if args.json_out != Path("my_library.json"):
+        print(f"[*] Exporting JSON to: {args.json_out}")
         export_to_json(catalog, args.json_out)
     if args.csv_out != Path("my_library.csv"):
+        print(f"[*] Exporting CSV to: {args.csv_out}")
         export_to_csv(catalog, args.csv_out)
     if args.txt_out != Path("my_library.txt"):
+        print(f"[*] Exporting TXT to: {args.txt_out}")
         export_to_txt(catalog, args.txt_out)
 
 
@@ -77,6 +96,30 @@ def run_duplicates(args: argparse.Namespace) -> None:
         source_file=str(args.input),
     )
     print(report)
+
+
+def execute_capture_only(dump_path: Path = Path("raw_library_dump.json")) -> None:
+    """Helper that ONLY performs capture (network fetch) without any database operations."""
+    print(f"[*] Starting capture to: {dump_path}")
+    capture_library(dump_file=dump_path)
+    print(f"[*] Capture complete. Raw dump saved to: {dump_path}")
+
+
+def execute_parse_only(dump_path: Path = Path("raw_library_dump.json"), reset: bool = False) -> None:
+    """Helper that ONLY parses a local dump file into the database without any network operations."""
+    if reset:
+        print("[*] Resetting database...")
+        reset_database()
+        print("[*] Database reset complete.")
+
+    print(f"[*] Reading dump file: {dump_path}")
+    catalog = parse_dump(dump_path)
+    total_items = catalog["metadata"]["total_items"]
+    print(f"[*] Found {total_items} items in dump file.")
+
+    print("[*] Syncing catalog to database...")
+    sync_catalog_to_db(catalog)
+    print(f"[*] Successfully imported {total_items} items into database.")
 
 
 def execute_full_sync(
@@ -160,7 +203,9 @@ def run_interactive_menu() -> None:
             "Select an action:",
             choices=[
                 "📊 View Duplicate Analysis",
-                "🔄 Sync Library (Capture & Parse)",
+                "📥 Capture Library (Fetch raw data)",
+                "⚡ Parse Local Dump (Update database)",
+                "🔄 Parse Local Dump with Reset (Clean slate)",
                 "🌐 Inspect Live Bundle (Deal Evaluator)",
                 "📜 View Expired Deal Reading List",
                 "🔍 Search Library",
@@ -180,8 +225,14 @@ def run_interactive_menu() -> None:
                 duplicates = find_duplicates(items)
                 print("\n" + format_duplicate_report(duplicates, len(items), "sqlite:///./humble_library.db"))
 
-        elif choice == "🔄 Sync Library (Capture & Parse)":
-            execute_full_sync(dump_path)
+        elif choice == "📥 Capture Library (Fetch raw data)":
+            execute_capture_only(dump_path)
+
+        elif choice == "⚡ Parse Local Dump (Update database)":
+            execute_parse_only(dump_path, reset=False)
+
+        elif choice == "🔄 Parse Local Dump with Reset (Clean slate)":
+            execute_parse_only(dump_path, reset=True)
 
         elif choice == "🌐 Inspect Live Bundle (Deal Evaluator)":
             if not _ensure_library_exists(dump_path):
