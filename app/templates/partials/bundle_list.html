@@ -1,11 +1,12 @@
 <div class="result-list">
   {# Category stream: clicking a bundle row filters the master stream
-     by that bundle's name.  HTMX navigation is temporarily disabled –
-     the row is rendered as a plain (non-clickable) element so the
-     layout/styling can be validated independently of the network
-     behaviour. #}
+     by that bundle's id and resets the inspector drawer. #}
   {% for bundle in bundles %}
-  <article class="category-row" tabindex="0">
+  <article class="category-row" tabindex="0"
+    hx-get="/library/search?bundle_id={{ bundle.id }}"
+    hx-target="#master-stream"
+    hx-swap="innerHTML"
+    hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); document.querySelector('.mode-pill[role=\'tab\']').classList.add('active'); hx.ajax('GET', '/library/overview', '#inspector-drawer');">
     <div class="result-info">
       <span class="result-title">{{ bundle.name }}</span>
     </div>

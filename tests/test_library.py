@@ -570,6 +570,54 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
             cleanup.close()
 
 
+def test_category_row_htmx_drilldown_attributes(client):
+    """Verify that publisher and bundle list partials contain the expected
+    HTMX drilldown attributes on each .category-row, targeting /library/search
+    with the appropriate filter parameter and swapping into #master-stream."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Drilldown Test Bundle")
+        db.add(bundle)
+        db.flush()
+
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="Drilldown Test Item",
+                publisher="Drilldown Publisher",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        # Test publisher list partial
+        resp_publishers = client.get("/library/publishers")
+        assert resp_publishers.status_code == 200
+        assert 'hx-get="/library/search?publisher=Drilldown+Publisher"' in resp_publishers.text or \
+               'hx-get="/library/search?publisher=Drilldown%20Publisher"' in resp_publishers.text
+        assert 'hx-target="#master-stream"' in resp_publishers.text
+        assert 'hx-swap="innerHTML"' in resp_publishers.text
+
+        # Test bundle list partial
+        resp_bundles = client.get("/library/bundles")
+        assert resp_bundles.status_code == 200
+        assert f'hx-get="/library/search?bundle_id={bundle.id}"' in resp_bundles.text
+        assert 'hx-target="#master-stream"' in resp_bundles.text
+        assert 'hx-swap="innerHTML"' in resp_bundles.text
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(Item.title == "Drilldown Test Item").delete()
+            cleanup.query(Bundle).filter(Bundle.title == "Drilldown Test Bundle").delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
 def test_search_results_contain_inspector_htmx_triggers(client):
     """Verify that search result rows contain HTMX attributes that load
     item details into #inspector-drawer on click.  Each .result-row (or

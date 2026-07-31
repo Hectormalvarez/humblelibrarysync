@@ -1,11 +1,12 @@
 <div class="result-list">
   {# Category stream: clicking a publisher row filters the master
-     stream by that publisher's name.  HTMX navigation is temporarily
-     disabled – the row is rendered as a plain (non-clickable) element
-     so the layout/styling can be validated independently of the
-     network behaviour. #}
+     stream by that publisher's name and resets the inspector drawer. #}
   {% for publisher in publishers %}
-  <article class="category-row" tabindex="0">
+  <article class="category-row" tabindex="0"
+    hx-get="/library/search?publisher={{ publisher.name | urlencode }}"
+    hx-target="#master-stream"
+    hx-swap="innerHTML"
+    hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); document.querySelector('.mode-pill[role=\'tab\']').classList.add('active'); hx.ajax('GET', '/library/overview', '#inspector-drawer');">
     <div class="result-info">
       <span class="result-title">{{ publisher.name }}</span>
     </div>

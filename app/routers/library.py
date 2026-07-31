@@ -170,13 +170,13 @@ def library_bundles(
     ``#master-stream`` container.
     """
     rows = (
-        db.query(Bundle.title, func.count(Item.id).label("count"))
+        db.query(Bundle.id, Bundle.title, func.count(Item.id).label("count"))
         .join(Item, Item.bundle_id == Bundle.id)
         .group_by(Bundle.id)
         .order_by(func.count(Item.id).desc())
         .all()
     )
-    bundles = [{"name": name, "count": count} for name, count in rows]
+    bundles = [{"id": id, "name": name, "count": count} for id, name, count in rows]
     return templates.TemplateResponse(
         request,
         "partials/bundle_list.html",
