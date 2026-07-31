@@ -14,4 +14,4 @@ def test_home_page_renders(client):
     """Verify the / endpoint renders the Jinja2 template successfully."""
     response = client.get("/")
     assert response.status_code == 200
-    assert "Humble Library Sync" in response.text
+    assert "Total library items:" in response.text
