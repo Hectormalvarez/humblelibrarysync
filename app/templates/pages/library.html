@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h1>Library Search</h1>
+<input
+  type="search"
+  name="q"
+  placeholder="Search your library..."
+  hx-get="/library/search"
+  hx-trigger="keyup changed delay:300ms"
+  hx-target="#search-results"
+/>
+<div id="search-results"></div>
+{% endblock %}

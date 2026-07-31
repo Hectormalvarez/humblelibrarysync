@@ -58,3 +58,64 @@ a {
   margin: 0 auto;
   padding: 1.5rem;
 }
+
+/* ----- Navigation ----- */
+nav {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+nav a {
+  font-weight: 500;
+  color: #555;
+}
+
+nav a:hover {
+  color: #1a1a1a;
+}
+
+/* ----- Library Search ----- */
+input[type="search"] {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+/* ----- Search Results ----- */
+#search-results {
+  margin-top: 1rem;
+}
+
+.search-result-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.search-result-item strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.search-result-item .bundle,
+.search-result-item .publisher {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.search-result-item .bundle + .publisher::before {
+  content: "·";
+  margin: 0 0.4rem;
+}
+
+#search-results p {
+  color: #888;
+  font-style: italic;
+}

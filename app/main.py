@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from app.routers.dashboard import router as dashboard_router
+from app.routers.library import router as library_router
 
 # Initialize the FastAPI application instance.
 # This is the central object that routes HTTP requests to the appropriate handlers.
@@ -22,6 +23,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Include the dashboard router which handles the root "/" endpoint.
 app.include_router(dashboard_router)
+
+# Include the library router which handles the "/library" endpoints.
+app.include_router(library_router)
 
 
 @app.get("/health")
