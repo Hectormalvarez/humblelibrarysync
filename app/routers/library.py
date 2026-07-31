@@ -79,6 +79,23 @@ def library_search(
         publishers_summary = []
         bundles_summary = []
 
+    # For pagination requests (offset > 0), return only the item rows partial
+    # so HTMX can swap them in without re-rendering the filter bar or wrapper.
+    if offset > 0:
+        return templates.TemplateResponse(
+            request,
+            "partials/item_rows.html",
+            {
+                "items": items,
+                "limit": limit,
+                "offset": offset,
+                "has_more": has_more,
+                "q": q,
+                "active_publisher": active_publisher,
+                "active_bundle": active_bundle,
+            },
+        )
+
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",

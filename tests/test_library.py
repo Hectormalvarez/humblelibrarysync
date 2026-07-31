@@ -113,11 +113,11 @@ def test_library_search_initial_load_aggregations(client):
         assert resp.context["publishers_summary"] == []
         assert resp.context["bundles_summary"] == []
 
-        # offset > 0 → aggregations empty
+        # offset > 0 → returns item_rows partial (no aggregations in context)
         resp = client.get("/library/search?limit=1&offset=1")
         assert resp.status_code == 200
-        assert resp.context["publishers_summary"] == []
-        assert resp.context["bundles_summary"] == []
+        # The item_rows partial does not include aggregation context keys
+        assert "publishers_summary" not in resp.context or resp.context.get("publishers_summary") is None
     finally:
         db.close()
         # Clean up test data
@@ -666,6 +666,130 @@ def test_category_row_htmx_drilldown_attributes(client):
         try:
             cleanup.query(Item).filter(Item.title == "Drilldown Test Item").delete()
             cleanup.query(Bundle).filter(Bundle.title == "Drilldown Test Bundle").delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
+def test_search_pagination_preserves_publisher_filter(client):
+    """Verify that the infinite-scroll trigger on the last page of results
+    includes the active publisher filter parameter so that subsequent pages
+    maintain the filter."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Pagination Filter Bundle")
+        db.add(bundle)
+        db.flush()
+
+        for i in range(6):
+            db.add(
+                Item(
+                    bundle_id=bundle.id,
+                    title=f"Pagination Filter Item {i}",
+                    publisher="Pagination Filter Publisher",
+                    item_type="download",
+                    available_formats=["PDF"],
+                    downloads={},
+                )
+            )
+        db.commit()
+
+        # Request first page with publisher filter (limit=3 so has_more=True)
+        resp = client.get(
+            "/library/search?publisher=Pagination+Filter+Publisher&limit=3&offset=0"
+        )
+        assert resp.status_code == 200
+        # The infinite-scroll hx-get on the last row must include the publisher param
+        # Jinja2 renders the value without URL encoding, so spaces remain as spaces
+        assert "publisher=Pagination Filter Publisher" in resp.text
+        # bundle_id should NOT be present when no bundle filter is active
+        assert "bundle_id" not in resp.text
+        # Verify has_more triggered the scroll trigger article
+        assert resp.text.count('<article class="result-row"') == 3
+
+        # Request second page – should still have publisher filter in scroll trigger
+        resp2 = client.get(
+            "/library/search?publisher=Pagination+Filter+Publisher&limit=3&offset=3"
+        )
+        assert resp2.status_code == 200
+        # This page has 3 items and has_more=False, so no infinite scroll trigger
+        # But the items should still be rendered
+        assert "Pagination Filter Item 3" in resp2.text
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(Item.title.like("Pagination Filter Item%")).delete()
+            cleanup.query(Bundle).filter(Bundle.title == "Pagination Filter Bundle").delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
+def test_search_pagination_returns_appended_items(client):
+    """Verify that page 2 requests (offset > 0) return only item rows
+    with the next sentinel row, without the filter bar or outer wrapper.
+    The sentinel should have hx-swap="outerHTML" and hx-target="this".
+    """
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="Append Test Bundle")
+        db.add(bundle)
+        db.flush()
+
+        for i in range(7):
+            db.add(
+                Item(
+                    bundle_id=bundle.id,
+                    title=f"Append Test Item {i}",
+                    publisher="Append Test Publisher",
+                    item_type="download",
+                    available_formats=["PDF"],
+                    downloads={},
+                )
+            )
+        db.commit()
+
+        # Request second page (offset=3, limit=3) – should return item_rows partial
+        # 7 items total: page 1 has items 0-2, page 2 has items 3-5 (has_more=True), page 3 has item 6
+        resp = client.get(
+            "/library/search?q=Append&limit=3&offset=3"
+        )
+        assert resp.status_code == 200
+        # Should NOT contain the filter bar or result-list wrapper
+        assert "filter-bar" not in resp.text
+        assert 'id="item-list-container"' not in resp.text
+        # Should contain the 3 items from page 2
+        assert "Append Test Item 3" in resp.text
+        assert "Append Test Item 4" in resp.text
+        assert "Append Test Item 5" in resp.text
+        # Should have exactly 3 result-row articles (items + sentinel counts as one)
+        assert resp.text.count('<article class="result-row"') == 3
+        # The sentinel should be a .scroll-sentinel div with hx-trigger
+        # targeting the actual scroll container (#master-stream)
+        assert 'class="scroll-sentinel"' in resp.text
+        assert 'hx-trigger="intersect once root:#master-stream rootMargin:200px"' in resp.text
+        assert 'hx-swap="outerHTML"' in resp.text
+        assert 'hx-target="this"' in resp.text
+        # The sentinel should have the next offset (6) in its hx-get
+        assert "offset=6" in resp.text
+
+        # Request third page (offset=6, limit=3) – has_more=False, no sentinel
+        resp2 = client.get(
+            "/library/search?q=Append&limit=3&offset=6"
+        )
+        assert resp2.status_code == 200
+        assert "Append Test Item 6" in resp2.text  # Last item
+        # No sentinel when has_more is False
+        assert 'class="scroll-sentinel"' not in resp2.text
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(Item.title.like("Append Test Item%")).delete()
+            cleanup.query(Bundle).filter(Bundle.title == "Append Test Bundle").delete()
             cleanup.commit()
         finally:
             cleanup.close()

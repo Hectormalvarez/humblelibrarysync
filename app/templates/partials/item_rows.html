@@ -1,16 +1,6 @@
-{% if active_publisher or active_bundle %}
-<div class="filter-bar">
-  <span class="filter-pill">
-    Filtered by: {{ active_publisher or active_bundle.title }}
-    <button class="filter-clear-btn"
-      hx-get="/library/search"
-      hx-target="#master-stream"
-      hx-swap="innerHTML"
-      hx-on:click="document.querySelector('.palette-input').value = '';">✕ Clear</button>
-  </span>
-</div>
-{% endif %}
-<div class="result-list" id="item-list-container">
+{# Item rows partial – returned for HTMX pagination requests (offset > 0).
+   Contains only the result rows and the next infinite-scroll sentinel,
+   without the filter bar or outer wrapper so it can be swapped cleanly. #}
 {% for item in items %}
   {# Clicking this row loads the item detail partial into #inspector-drawer. #}
   <article class="result-row" tabindex="0"
@@ -47,4 +37,3 @@
   hx-swap="outerHTML"
   hx-target="this">Loading more items...</div>
 {% endif %}
-</div>

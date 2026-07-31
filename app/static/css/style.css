@@ -819,6 +819,22 @@ nav a:hover {
   outline-offset: 2px;
 }
 
+/* ----- Scroll Sentinel (Infinite Scroll) ----- */
+/*
+ * .scroll-sentinel is the invisible trigger element at the bottom of the
+ * search results list.  When it scrolls into view, HTMX fires a request
+ * to load the next page of results.  It needs explicit layout presence
+ * (min-height + display: block) so the IntersectionObserver registers it.
+ */
+.scroll-sentinel {
+  display: block;
+  min-height: 2rem;
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
 /* ----- Empty / Message State ----- */
 #search-results p {
   color: var(--color-text-muted);
