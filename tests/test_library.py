@@ -133,6 +133,28 @@ def test_library_search_initial_load_aggregations(client):
             db_cleanup.close()
 
 
+def test_home_page_contains_mode_switcher(client):
+    """Verify that the home page renders a .mode-switcher pill bar with
+    three buttons targeting /library/search, /library/publishers, and
+    /library/bundles via HTMX."""
+    response = client.get("/")
+    assert response.status_code == 200
+    # The mode-switcher container and three pills must be present
+    assert "mode-switcher" in response.text
+    assert response.text.count("mode-pill") >= 3
+    # Books pill → /library/search (active by default)
+    assert 'hx-get="/library/search"' in response.text
+    # Publishers pill → /library/publishers
+    assert 'hx-get="/library/publishers"' in response.text
+    # Bundles pill → /library/bundles
+    assert 'hx-get="/library/bundles"' in response.text
+    # All pills target #master-stream with innerHTML swap
+    assert response.text.count('hx-target="#master-stream"') >= 3
+    assert response.text.count('hx-swap="innerHTML"') >= 3
+    # Exactly one pill carries the .active class
+    assert response.text.count("mode-pill active") == 1
+
+
 def test_home_page_search_uses_input_event(client):
     """Verify the home page search input uses the 'input' event for
     HTMX triggers so that deletions, cuts, pastes, and clear-button

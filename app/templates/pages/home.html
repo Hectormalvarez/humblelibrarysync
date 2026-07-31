@@ -77,6 +77,20 @@
           });
         })();
       </script>
+      <div class="mode-switcher" role="tablist" aria-label="Library view">
+        <button type="button" class="mode-pill active" role="tab" aria-selected="true"
+          hx-get="/library/search"
+          hx-target="#master-stream"
+          hx-swap="innerHTML">📚 Books</button>
+        <button type="button" class="mode-pill" role="tab" aria-selected="false"
+          hx-get="/library/publishers"
+          hx-target="#master-stream"
+          hx-swap="innerHTML">🏢 Publishers</button>
+        <button type="button" class="mode-pill" role="tab" aria-selected="false"
+          hx-get="/library/bundles"
+          hx-target="#master-stream"
+          hx-swap="innerHTML">📦 Bundles</button>
+      </div>
       <div class="filter-bar"></div>
     </div>
 
