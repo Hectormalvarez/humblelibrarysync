@@ -37,7 +37,8 @@ def test_library_search_pagination(client):
         # First page: limit=5, offset=0 → should return 5 items, has_more=True
         resp = client.get("/library/search?q=Paginated&limit=5&offset=0")
         assert resp.status_code == 200
-        assert resp.text.count("result-row") == 5
+        # Count <article class="result-row" elements specifically
+        assert resp.text.count('<article class="result-row"') == 5
         assert "Paginated Item 0" in resp.text
         assert "Paginated Item 4" in resp.text
         assert "Paginated Item 5" not in resp.text
@@ -45,7 +46,7 @@ def test_library_search_pagination(client):
         # Second page: limit=5, offset=5 → should return 3 items, has_more=False
         resp = client.get("/library/search?q=Paginated&limit=5&offset=5")
         assert resp.status_code == 200
-        assert resp.text.count("result-row") == 3
+        assert resp.text.count('<article class="result-row"') == 3
         assert "Paginated Item 5" in resp.text
         assert "Paginated Item 7" in resp.text
     finally:
@@ -415,6 +416,50 @@ def test_get_item_inspector_detail(client):
             cleanup.query(Bundle).filter(
                 Bundle.title == "Inspector Test Bundle"
             ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()
+
+
+def test_search_results_contain_inspector_htmx_triggers(client):
+    """Verify that search result rows contain HTMX attributes that load
+    item details into #inspector-drawer on click.  Each .result-row (or
+    inner .result-row-click for infinite-scroll rows) should have
+    hx-get targeting /library/items/{id} and hx-target="#inspector-drawer".
+    """
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle = Bundle(title="HTMX Trigger Bundle")
+        db.add(bundle)
+        db.flush()
+
+        db.add(
+            Item(
+                bundle_id=bundle.id,
+                title="HTMX Trigger Item",
+                publisher="HTMX Press",
+                item_type="download",
+                available_formats=["PDF"],
+                downloads={},
+            )
+        )
+        db.commit()
+
+        resp = client.get("/library/search?q=HTMX")
+        assert resp.status_code == 200
+        # The row must contain an hx-get pointing to the item detail endpoint
+        assert 'hx-get="/library/items/' in resp.text
+        # The HTMX target must be the inspector drawer
+        assert 'hx-target="#inspector-drawer"' in resp.text
+        # The swap method should be innerHTML
+        assert 'hx-swap="innerHTML"' in resp.text
+    finally:
+        db.close()
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(Item.title == "HTMX Trigger Item").delete()
+            cleanup.query(Bundle).filter(Bundle.title == "HTMX Trigger Bundle").delete()
             cleanup.commit()
         finally:
             cleanup.close()

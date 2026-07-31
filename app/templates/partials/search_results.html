@@ -1,14 +1,40 @@
 <div class="result-list">
 {% for item in items %}
   {# Infinite scroll: hx-trigger="revealed" fires an async request to append the next batch of rows as soon as the user scrolls this last row into view (hx-swap="afterend"). #}
+  {# Clicking a row loads the item detail partial into #inspector-drawer via HTMX. #}
   {% if loop.last and has_more %}
   <article class="result-row" tabindex="0"
     hx-get="/library/search?q={{ q|default('') }}&offset={{ offset + limit }}&limit={{ limit }}"
     hx-trigger="revealed"
     hx-swap="afterend">
+    {# Inner clickable element for inspector – separate from infinite-scroll hx-get. #}
+    <div class="result-row-click"
+      hx-get="/library/items/{{ item.id }}"
+      hx-target="#inspector-drawer"
+      hx-swap="innerHTML"
+      hx-on:click="document.querySelectorAll('.result-row').forEach(el => el.classList.remove('selected')); this.closest('.result-row').classList.add('selected');">
+      <div class="result-info">
+        <span class="result-title">{{ item.title }}</span>
+        <span class="result-meta">
+          {% if item.bundle %}
+            <span class="bundle">{{ item.bundle.title }}</span>
+          {% endif %}
+        </span>
+      </div>
+      <div class="result-actions">
+        {% for fmt in item.available_formats %}
+          <span class="badge">{{ fmt }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </article>
   {% else %}
-  <article class="result-row" tabindex="0">
-  {% endif %}
+  {# Clicking this row loads the item detail partial into #inspector-drawer. #}
+  <article class="result-row" tabindex="0"
+    hx-get="/library/items/{{ item.id }}"
+    hx-target="#inspector-drawer"
+    hx-swap="innerHTML"
+    hx-on:click="document.querySelectorAll('.result-row').forEach(el => el.classList.remove('selected')); this.classList.add('selected');">
     <div class="result-info">
       <span class="result-title">{{ item.title }}</span>
       <span class="result-meta">
@@ -23,6 +49,7 @@
       {% endfor %}
     </div>
   </article>
+  {% endif %}
 {% else %}
   <p>No results found.</p>
 {% endfor %}

@@ -501,6 +501,32 @@ nav a:hover {
 }
 
 /*
+ * .result-row.selected is applied via HTMX hx-on:click when the user clicks
+ * a search result.  The accent left-border and surface background provide
+ * a clear visual indicator of which row's details are loaded in the
+ * inspector drawer.
+ */
+.result-row.selected {
+  background-color: var(--color-bg-surface);
+  border-left: 3px solid var(--color-accent);
+}
+
+/*
+ * .result-row-click is an inner clickable element used on infinite-scroll
+ * rows where the article's hx-get is reserved for loading more results.
+ * It fills the parent so the entire row area remains clickable for the
+ * inspector drawer.
+ */
+.result-row-click {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  cursor: pointer;
+}
+
+/*
  * .result-info groups the title, bundle, and publisher on the left-hand side
  * so they stack vertically within the flex row.
  */
