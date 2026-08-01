@@ -260,7 +260,7 @@ nav {
   color: var(--color-text-muted);
   margin-bottom: 0;
 }
-  */
+
 .stats-bar {
   display: flex;
   align-items: center;
@@ -468,15 +468,6 @@ nav {
 #search-results {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;
-}
-
-/*
- * .result-list wraps every result row.  The border, radius, and shadow
- * live on the parent #search-results so the scroll container clips
- * everything cleanly without glitching the bottom border.
- */
-.result-list {
-  /* no border/radius/shadow – delegated to #search-results */
 }
 
 /*
@@ -799,7 +790,7 @@ nav {
 }
 
 .category-row .count-badge {
-  font-size: var(--font-xs);
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
   background: var(--color-bg-surface);
   padding: 2px 8px;
