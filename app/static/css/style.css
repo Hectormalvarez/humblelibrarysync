@@ -1503,3 +1503,90 @@ main.container:has(.app-workspace) {
   min-height: 0;
   overflow: hidden;
 }
+
+/* ----- Error Alert ----- */
+.error-alert {
+  padding: var(--space-3);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-error-border);
+}
+
+/* ----- Tier Breakdown ----- */
+.tier-block {
+  margin-bottom: var(--space-3);
+}
+
+.tier-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-1);
+}
+
+.tier-amount {
+  font-weight: 700;
+  font-size: var(--text-base);
+}
+
+.tier-bta-label {
+  font-weight: 400;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.tier-count {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.tier-description {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-1) 0;
+  padding: 0 var(--space-3);
+}
+
+.tier-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tier-item {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.tier-item--owned {
+  color: var(--color-text-muted);
+}
+
+.tier-item--owned::before {
+  content: "[x] ";
+  color: var(--color-success);
+}
+
+.tier-item--unowned {
+  color: var(--color-text-primary);
+}
+
+.tier-item--unowned::before {
+  content: "[+] ";
+  color: var(--color-accent);
+}
+
+/* ----- Section Heading (reusable) ----- */
+.section-heading {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
