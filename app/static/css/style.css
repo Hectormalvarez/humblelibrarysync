@@ -1807,3 +1807,54 @@ main.container:has(.app-workspace) {
     margin-top: var(--space-2);
   }
 }
+
+/* ================================================================
+   12. DARK MODE
+   ================================================================ */
+
+/*
+ * Dark mode support using prefers-color-scheme media query.
+ * Overrides the neutral palette tokens to use dark backgrounds
+ * and light text while keeping accent colors consistent.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* ----- Neutral palette (dark) ----- */
+    --color-bg-app:           #1a1a1a;
+    --color-bg-surface:       #27272a;
+    --color-text-primary:     #fafafa;
+    --color-text-secondary:   #a1a1aa;
+    --color-text-muted:       #71717a;
+    --color-border:           #3f3f46;
+    --color-border-light:     #27272a;
+    --color-bg-hover:         #3f3f46;
+    --color-bg-elevated:      #52525b;
+    --color-text-inverse:     #1a1a1a;
+
+    /* ----- Badge colours (dark) ----- */
+    --color-badge-bg:         #3f3f46;
+    --color-badge-text:       #d4d4d8;
+    --color-badge-pdf-bg:     #450a0a;
+    --color-badge-pdf-text:   #fca5a5;
+    --color-badge-epub-bg:    #1e3a8a;
+    --color-badge-epub-text:  #93c5fd;
+    --color-badge-mobi-bg:    #451a03;
+    --color-badge-mobi-text:  #fcd34d;
+
+    /* ----- Semantic colours (dark) ----- */
+    --color-success-bg:       #052e16;
+    --color-error-bg:         #450a0a;
+    --color-error-text:       #fca5a5;
+    --color-error-border:     #7f1d1d;
+    --color-border-strong:    #52525b;
+  }
+
+  /* Adjust scrollbar colors for dark mode */
+  #search-results::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+  }
+
+  #search-results::-webkit-scrollbar-thumb:hover {
+    background: var(--color-border-strong);
+  }
+}
