@@ -1,0 +1,42 @@
+{% if error %}
+<div class="error-alert" style="padding:var(--space-4);margin:var(--space-4);background:#fee2e2;color:#991b1b;border-radius:var(--radius-md);border:1px solid #fca5a5;">
+  ⚠️ {{ error }}
+</div>
+{% else %}
+{% for category in categories %}
+{% if category.bundles %}
+<section class="deal-category">
+  <h3 class="deal-category-heading">{{ category.label }}</h3>
+  <div class="deal-cards">
+    {% for bundle in category.bundles %}
+    <article
+      class="deal-card"
+      tabindex="0"
+      hx-get="/deals/inspect?url={{ bundle.url | urlencode }}"
+      hx-target="#deal-inspector-drawer"
+      hx-swap="innerHTML"
+      hx-indicator="#deal-inspector-drawer"
+    >
+      <div class="deal-card-info">
+        <span class="deal-card-title">{{ bundle.title }}</span>
+        {% if bundle.author %}
+        <span class="deal-card-author">by {{ bundle.author }}</span>
+        {% endif %}
+      </div>
+      {% if bundle.end_date %}
+      <span class="deal-card-expiry">
+        Ends {{ bundle.end_date[:10] }}
+      </span>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endfor %}
+{% if not categories | selectattr("bundles") | list %}
+<div class="empty-state" style="padding:var(--space-6);text-align:center;color:var(--color-text-muted);">
+  <p>No active bundles found. Check back later!</p>
+</div>
+{% endif %}
+{% endif %}

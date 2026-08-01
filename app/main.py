@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from app.routers.dashboard import router as dashboard_router
+from app.routers.deals import router as deals_router
 from app.routers.library import router as library_router
 
 # Initialize the FastAPI application instance.
@@ -26,6 +27,9 @@ app.include_router(dashboard_router)
 
 # Include the library router which handles the "/library" endpoints.
 app.include_router(library_router)
+
+# Include the deals router which handles the "/deals" endpoints.
+app.include_router(deals_router)
 
 
 @app.get("/health")

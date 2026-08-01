@@ -9,7 +9,8 @@
 </head>
 <body>
   <nav>
-    <a href="/">Humble Library Sync</a>
+    <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">📚 Library Browser</a>
+    <a href="/deals" class="nav-link {% if request.url.path == '/deals' %}active{% endif %}">🌐 Deal Inspector</a>
   </nav>
   <main class="container">
     {% block content %}{% endblock %}

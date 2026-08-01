@@ -226,22 +226,41 @@ nav {
   border-bottom: 1px solid var(--color-border);
 }
 
-nav a {
-  font-weight: 600;
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: var(--text-sm);
+  font-weight: 500;
   color: var(--color-text-primary);
-  font-size: var(--text-base);
+  border-radius: var(--radius-md);
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-nav a:hover {
+.nav-link:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.nav-link.active {
+  background: var(--color-accent-ring);
   color: var(--color-accent);
+  font-weight: 600;
 }
 
-/* ----- Stats Bar (Dashboard Summary) ----- */
-/*
- * .stats-bar is a compact inline banner that sits above the command palette
- * on the root page.  It displays the total item count and database status
- * without adding vertical bulk.
- */
+/* ----- Page Header Hierarchy ----- */
+.view-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.view-subtitle {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 0;
+}
+  */
 .stats-bar {
   display: flex;
   align-items: center;
@@ -1370,4 +1389,117 @@ main.container:has(.app-workspace) {
 
 .download-btn:hover {
   opacity: 0.85;
+}
+
+/* ================================================================
+   7. DEAL INSPECTOR COMPONENTS
+   Styles for the Live Deal Inspector page, deal cards, category
+   headings, and the tier breakdown inside the inspector drawer.
+   ================================================================ */
+
+/* ----- Deal Category Sections ----- */
+.deal-category {
+  margin-bottom: var(--space-5);
+}
+
+.deal-category-heading {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+/* ----- Deal Cards ----- */
+.deal-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.deal-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.deal-card:hover {
+  border-color: var(--color-accent);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.deal-card:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.deal-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.deal-card-title {
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deal-card-author {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.deal-card-expiry {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* ----- Overlap Summary Badge ----- */
+.overlap-summary {
+  margin-bottom: var(--space-1);
+}
+
+.overlap-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: var(--text-md);
+}
+
+.overlap-badge--owned {
+  background: var(--color-accent-ring);
+  border: 1px solid var(--color-accent);
+}
+
+.overlap-badge--new {
+  background: #f0fdf4;
+  border: 1px solid #22c55e;
+}
+
+/* ----- Drawer Container for Deal Inspector ----- */
+.drawer-container {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }

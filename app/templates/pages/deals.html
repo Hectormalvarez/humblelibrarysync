@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="app-workspace">
+  <div class="master-pane">
+    <div class="control-bar">
+      <h1 class="view-title">Live Deal Inspector</h1>
+      <p class="view-subtitle">Evaluate active Humble Bundles against your owned library in real-time.</p>
+    </div>
+
+    <div
+      id="deal-stream"
+      class="stream-container"
+      hx-get="/deals/live"
+      hx-trigger="load"
+    ></div>
+  </div>
+
+  <div class="inspector-pane">
+    <aside id="deal-inspector-drawer" class="drawer-container">
+      <div class="overview-container">
+        <div class="overview-header">
+          <h2 class="overview-title">Bundle Inspector</h2>
+          <p class="overview-subtitle">
+            Select a live bundle to inspect tier value and library overlap.
+          </p>
+        </div>
+        <div class="overview-hint">
+          Click any bundle card from the list on the left to evaluate it against your library.
+        </div>
+      </div>
+    </aside>
+    <footer class="status-footer"></footer>
+  </div>
+</div>
+{% endblock %}

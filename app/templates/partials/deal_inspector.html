@@ -1,0 +1,117 @@
+{% if placeholder %}
+<div class="overview-container">
+  <div class="overview-header">
+    <h2 class="overview-title">Bundle Inspector</h2>
+    <p class="overview-subtitle">
+      Select a live bundle to inspect tier value and library overlap.
+    </p>
+  </div>
+  <div class="overview-hint">
+    Click any bundle card from the list on the left to evaluate it against your library.
+  </div>
+</div>
+{% elif error %}
+<div class="inspector-detail">
+  <div class="inspector-header">
+    <h2 class="inspector-title">Bundle Inspector</h2>
+  </div>
+  <div class="error-alert" style="padding:var(--space-3);background:#fee2e2;color:#991b1b;border-radius:var(--radius-md);border:1px solid #fca5a5;">
+    ⚠️ {{ error }}
+  </div>
+  <p style="font-size:var(--text-xs);color:var(--color-text-muted);word-break:break-all;">
+    URL: {{ url }}
+  </p>
+</div>
+{% else %}
+<div class="inspector-detail">
+  <div class="inspector-header">
+    <h2 class="inspector-title">{{ bundle_name }}</h2>
+    <button
+      class="drawer-close"
+      aria-label="Close bundle inspector"
+      title="Close bundle inspector"
+      hx-get="/deals/reset"
+      hx-target="#deal-inspector-drawer"
+      hx-swap="innerHTML"
+    >×</button>
+  </div>
+
+  <!-- Overlap Summary Badge -->
+  <section class="inspector-meta">
+    <div class="overlap-summary">
+      <div class="overlap-badge {{ 'overlap-badge--owned' if overlap_percentage > 0 else 'overlap-badge--new' }}">
+        {{ overlap_percentage }}% Owned
+      </div>
+    </div>
+    <div class="meta-list" style="margin-top:var(--space-3);">
+      <div class="meta-row">
+        <span class="meta-label">Total Items</span>
+        <span class="meta-value">{{ total_items }}</span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-label">Already Owned</span>
+        <span class="meta-value">{{ matched_count }}</span>
+      </div>
+      <div class="meta-row">
+        <span class="meta-label">New Items</span>
+        <span class="meta-value">{{ new_items_count }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tier-by-Tier Breakdown -->
+  {% if tier_breakdown %}
+  <section class="inspector-formats">
+    <h3 style="font-size:var(--text-sm);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-text-secondary);margin-bottom:var(--space-2);">
+      Pricing Tiers
+    </h3>
+    {% for tier in tier_breakdown %}
+    <div class="tier-block" style="margin-bottom:var(--space-3);">
+      <div class="tier-header" style="
+        display:flex;align-items:center;justify-content:space-between;
+        padding:var(--space-2) var(--space-3);
+        background:var(--color-bg-surface);border:1px solid var(--color-border);
+        border-radius:var(--radius-md);margin-bottom:var(--space-1);">
+        <span style="font-weight:700;font-size:var(--text-base);">
+          ${{ "%.2f" % tier.amount }} {{ tier.currency }}
+          {% if tier.is_bta %}<span style="font-weight:400;font-size:var(--text-sm);color:var(--color-text-muted);"> (BTA)</span>{% endif %}
+        </span>
+        <span style="font-size:var(--text-xs);color:var(--color-text-muted);">
+          {{ tier.owned | length }} owned / {{ tier.unowned | length }} new
+        </span>
+      </div>
+      {% if tier.header %}
+      <p style="font-size:var(--text-xs);color:var(--color-text-muted);margin:0 0 var(--space-1) 0;padding:0 var(--space-3);">{{ tier.header }}</p>
+      {% endif %}
+      <ul style="list-style:none;padding:0;margin:0;">
+        {% for title in tier.owned %}
+        <li style="padding:var(--space-1) var(--space-3);font-size:var(--text-sm);color:var(--color-text-muted);">
+          <span style="color:#22c55e;">[x] {{ title }}</span>
+        </li>
+        {% endfor %}
+        {% for title in tier.unowned %}
+        <li style="padding:var(--space-1) var(--space-3);font-size:var(--text-sm);color:var(--color-text-primary);">
+          <span style="color:var(--color-accent);">[+] {{ title }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </section>
+  {% elif pricing %}
+  <section class="inspector-formats">
+    <h3 style="font-size:var(--text-sm);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-text-secondary);margin-bottom:var(--space-2);">
+      Pricing Tiers
+    </h3>
+    {% for tier in pricing %}
+    <div class="meta-row">
+      <span class="meta-label">
+        {% if tier.header %}{{ tier.header }}{% else %}Tier {{ loop.index }}{% endif %}
+      </span>
+      <span class="meta-value">${{ "%.2f" % tier.amount }} {{ tier.currency }}{% if tier.is_bta %} (BTA){% endif %}</span>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</div>
+{% endif %}
