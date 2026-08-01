@@ -1718,3 +1718,92 @@ main.container:has(.app-workspace) {
     transform: none;
   }
 }
+
+/* ================================================================
+   11. RESPONSIVE DESIGN
+   ================================================================ */
+
+/*
+ * Tablet and below: stack panes vertically, inspector becomes a
+ * slide-over drawer.
+ */
+@media (max-width: 900px) {
+  .app-workspace {
+    flex-direction: column;
+  }
+
+  .master-pane,
+  .inspector-pane {
+    width: 100%;
+    height: auto;
+  }
+
+  .inspector-pane {
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    max-height: 50vh;
+  }
+
+  .control-bar {
+    padding: var(--space-3);
+  }
+
+  .stream-container {
+    padding: 0 var(--space-3) var(--space-3) var(--space-3);
+  }
+}
+
+/*
+ * Mobile: further simplify spacing and layout.
+ */
+@media (max-width: 600px) {
+  nav {
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .nav-link {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+
+  .view-title {
+    font-size: var(--text-md);
+  }
+
+  .view-subtitle {
+    font-size: var(--text-xs);
+  }
+
+  .mode-switcher {
+    flex-wrap: wrap;
+  }
+
+  .mode-pill {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+
+  .sort-select {
+    width: 100%;
+    margin-left: 0;
+    margin-top: var(--space-2);
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .category-grid {
+    flex-direction: column;
+  }
+
+  .expired-bundle-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .expired-bundle-stats {
+    margin-top: var(--space-2);
+  }
+}
