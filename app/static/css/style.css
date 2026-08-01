@@ -895,18 +895,22 @@ nav {
 
 /* ----- Library Overview (Inspector Drawer) ----- */
 /*
- * .overview-container is the root of the Library Overview partial loaded
- * into #inspector-drawer on page load.  It is a full-height column flex
- * wrapper so the header, stat grid, format breakdown, and helper note
- * stack naturally inside the narrow right pane.
+ * .drawer-scroll is a shared base for full-height scrollable drawer
+ * containers.  Both .overview-container and .inspector-detail extend
+ * this pattern so the header, content sections, and helper note stack
+ * naturally inside the narrow right pane.
  */
-.overview-container {
+.drawer-scroll {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
   height: 100%;
   padding: var(--space-5) var(--space-4);
   overflow-y: auto;
+}
+
+.overview-container {
+  /* extends .drawer-scroll – kept as a separate class for semantic clarity */
 }
 
 .overview-header {
@@ -1183,19 +1187,8 @@ main.container:has(.app-workspace) {
    the Library Overview so both drawer states feel consistent.
    ================================================================ */
 
-/*
- * .inspector-detail is the root container for the per-item drawer view.
- * It is a column flex wrapper so the header, metadata, format list, and
- * download list stack vertically and the inner section can scroll
- * independently inside the .inspector-pane.
- */
 .inspector-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  height: 100%;
-  padding: var(--space-5) var(--space-4);
-  overflow-y: auto;
+  /* extends .drawer-scroll – kept as a separate class for semantic clarity */
 }
 
 .inspector-header {

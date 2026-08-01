@@ -1,5 +1,5 @@
 {% if placeholder %}
-<div class="overview-container">
+<div class="overview-container drawer-scroll">
   <div class="overview-header">
     <h2 class="overview-title">Bundle Inspector</h2>
     <p class="overview-subtitle">
@@ -11,7 +11,7 @@
   </div>
 </div>
 {% elif error %}
-<div class="inspector-detail">
+<div class="inspector-detail drawer-scroll">
   <div class="inspector-header">
     <h2 class="inspector-title">Bundle Inspector</h2>
   </div>
@@ -23,7 +23,7 @@
   </p>
 </div>
 {% else %}
-<div class="inspector-detail">
+<div class="inspector-detail drawer-scroll">
   <div class="inspector-header">
     <h2 class="inspector-title">{{ bundle_name }}</h2>
     <button
