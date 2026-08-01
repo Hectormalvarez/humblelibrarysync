@@ -13,26 +13,26 @@
   </header>
 
   <section class="inspector-meta">
-    <dl class="meta-list">
-      <div class="meta-row">
-        <dt class="meta-label">Publisher</dt>
+    <dl class="meta-list surface-list">
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Publisher</dt>
         <dd class="meta-value">{{ item.publisher }}</dd>
       </div>
-      <div class="meta-row">
-        <dt class="meta-label">Bundle</dt>
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Bundle</dt>
         <dd class="meta-value">
           {% if item.bundle %}{{ item.bundle.title }}{% else %}—{% endif %}
         </dd>
       </div>
-      <div class="meta-row">
-        <dt class="meta-label">Item Type</dt>
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Item Type</dt>
         <dd class="meta-value">{{ item.item_type }}</dd>
       </div>
     </dl>
   </section>
 
   <section class="inspector-formats">
-    <h3 class="format-heading">Available Formats</h3>
+    <h3 class="format-heading text-heading-uppercase">Available Formats</h3>
     {# Reuse the global .badge styles; format-specific modifiers (PDF,
        EPUB, MOBI) pick up their dedicated colour tokens automatically. #}
     {% if item.available_formats %}
@@ -50,7 +50,7 @@
   </section>
 
   <section class="inspector-downloads">
-    <h3 class="format-heading">Downloads</h3>
+    <h3 class="format-heading text-heading-uppercase">Downloads</h3>
     {# `item.downloads` is a JSON dict where keys are format names (e.g. "pdf", "epub")
        and values are download objects containing `url` (direct link) and `human_size`
        (human-readable file size like "12.3 MB").  Each entry is rendered as a card
@@ -62,7 +62,7 @@
       <div class="download-card">
         <div class="download-info">
           <span class="download-format">{{ format | upper }}</span>
-          <span class="download-size">{{ info.human_size or '' }}</span>
+          <span class="download-size text-meta-muted">{{ info.human_size or '' }}</span>
         </div>
         <a href="{{ info.url }}" target="_blank" rel="noopener noreferrer" class="download-btn">Download</a>
       </div>

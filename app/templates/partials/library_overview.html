@@ -5,28 +5,28 @@
   </header>
 
   <div class="stat-grid">
-    <div class="stat-card">
-      <span class="stat-label">Total Books</span>
+    <div class="stat-card surface-card">
+      <span class="stat-label text-heading-uppercase">Total Books</span>
       <span class="stat-value">{{ total_items }}</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-label">Total Publishers</span>
+    <div class="stat-card surface-card">
+      <span class="stat-label text-heading-uppercase">Total Publishers</span>
       <span class="stat-value">{{ total_publishers }}</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-label">Total Bundles</span>
+    <div class="stat-card surface-card">
+      <span class="stat-label text-heading-uppercase">Total Bundles</span>
       <span class="stat-value">{{ total_bundles }}</span>
     </div>
   </div>
 
   <section class="format-breakdown">
-    <h3 class="format-heading">Formats</h3>
+    <h3 class="format-heading text-heading-uppercase">Formats</h3>
     {% if format_breakdown %}
-    <ul class="format-list">
+    <ul class="format-list surface-list">
       {% for fmt in format_breakdown %}
-      <li class="format-row">
+      <li class="format-row surface-list-row">
         <span class="format-name">{{ fmt.format }}</span>
-        <span class="format-count">{{ fmt.count }} item{% if fmt.count != 1 %}s{% endif %}</span>
+        <span class="format-count text-meta-muted">{{ fmt.count }} item{% if fmt.count != 1 %}s{% endif %}</span>
       </li>
       {% endfor %}
     </ul>

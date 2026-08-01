@@ -2,20 +2,20 @@
   {# Category stream: clicking a bundle row filters the master stream
      by that bundle's id and resets the inspector drawer. #}
   {% for bundle in bundles %}
-  <article class="category-row" tabindex="0"
+  <article class="category-row actionable-row" tabindex="0"
     hx-get="/library/search?bundle_id={{ bundle.id }}"
     hx-target="#master-stream"
     hx-swap="innerHTML"
     hx-include="#library-sort, #library-search"
     hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); var bp=document.querySelector('.mode-pill[role=\'tab\']'); bp.classList.add('active'); bp.setAttribute('aria-selected','true'); syncSortDropdown('books'); var ss=document.getElementById('library-sort'); if(ss){ss.setAttribute('hx-get', '/library/search');} hx.ajax('GET', '/library/overview', '#inspector-drawer');">
     <div class="result-info">
-      <span class="result-title">{{ bundle.name }}</span>
+      <span class="result-title text-title-truncate">{{ bundle.name }}</span>
     </div>
     <div class="result-actions">
       {% if bundle.purchase_date %}
       <span class="purchase-date">{{ bundle.purchase_date[:10] }}</span>
       {% endif %}
-      <span class="count-badge">{{ bundle.count }} item{% if bundle.count != 1 %}s{% endif %}</span>
+      <span class="count-badge text-meta-muted">{{ bundle.count }} item{% if bundle.count != 1 %}s{% endif %}</span>
     </div>
   </article>
   {% else %}

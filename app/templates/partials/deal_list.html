@@ -10,7 +10,7 @@
   <div class="deal-cards">
     {% for bundle in category.bundles %}
     <article
-      class="deal-card"
+      class="deal-card surface-card actionable"
       tabindex="0"
       hx-get="/deals/inspect?url={{ bundle.url | urlencode }}"
       hx-target="#deal-inspector-drawer"
@@ -18,9 +18,9 @@
       hx-indicator="#deal-inspector-drawer"
     >
       <div class="deal-card-info">
-        <span class="deal-card-title">{{ bundle.title }}</span>
+        <span class="deal-card-title text-title-truncate">{{ bundle.title }}</span>
         {% if bundle.author %}
-        <span class="deal-card-author">by {{ bundle.author }}</span>
+        <span class="deal-card-author text-meta-muted">by {{ bundle.author }}</span>
         {% endif %}
       </div>
       {% if bundle.end_date %}

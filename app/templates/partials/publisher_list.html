@@ -2,17 +2,17 @@
   {# Category stream: clicking a publisher row filters the master
      stream by that publisher's name and resets the inspector drawer. #}
   {% for publisher in publishers %}
-  <article class="category-row" tabindex="0"
+  <article class="category-row actionable-row" tabindex="0"
     hx-get="/library/search?publisher={{ publisher.name | urlencode }}"
     hx-target="#master-stream"
     hx-swap="innerHTML"
     hx-include="#library-sort, #library-search"
     hx-on:click="document.querySelectorAll('.mode-pill').forEach(el => el.classList.remove('active')); var bp=document.querySelector('.mode-pill[role=\'tab\']'); bp.classList.add('active'); bp.setAttribute('aria-selected','true'); syncSortDropdown('books'); var ss=document.getElementById('library-sort'); if(ss){ss.setAttribute('hx-get', '/library/search');} hx.ajax('GET', '/library/overview', '#inspector-drawer');">
     <div class="result-info">
-      <span class="result-title">{{ publisher.name }}</span>
+      <span class="result-title text-title-truncate">{{ publisher.name }}</span>
     </div>
     <div class="result-actions">
-      <span class="count-badge">{{ publisher.count }} item{% if publisher.count != 1 %}s{% endif %}</span>
+      <span class="count-badge text-meta-muted">{{ publisher.count }} item{% if publisher.count != 1 %}s{% endif %}</span>
     </div>
   </article>
   {% else %}

@@ -43,17 +43,17 @@
         {{ overlap_percentage }}% Owned
       </div>
     </div>
-    <div class="meta-list" style="margin-top:var(--space-3);">
-      <div class="meta-row">
-        <span class="meta-label">Total Items</span>
+    <div class="meta-list surface-list" style="margin-top:var(--space-3);">
+      <div class="meta-row surface-list-row">
+        <span class="meta-label text-heading-uppercase">Total Items</span>
         <span class="meta-value">{{ total_items }}</span>
       </div>
-      <div class="meta-row">
-        <span class="meta-label">Already Owned</span>
+      <div class="meta-row surface-list-row">
+        <span class="meta-label text-heading-uppercase">Already Owned</span>
         <span class="meta-value">{{ matched_count }}</span>
       </div>
-      <div class="meta-row">
-        <span class="meta-label">New Items</span>
+      <div class="meta-row surface-list-row">
+        <span class="meta-label text-heading-uppercase">New Items</span>
         <span class="meta-value">{{ new_items_count }}</span>
       </div>
     </div>
@@ -62,15 +62,15 @@
   <!-- Tier-by-Tier Breakdown -->
   {% if tier_breakdown %}
   <section class="inspector-formats">
-    <h3 class="section-heading">Pricing Tiers</h3>
+    <h3 class="section-heading text-heading-uppercase">Pricing Tiers</h3>
     {% for tier in tier_breakdown %}
     <div class="tier-block">
-      <div class="tier-header">
+      <div class="tier-header surface-list-row">
         <span class="tier-amount">
           ${{ "%.2f" % tier.amount }} {{ tier.currency }}
           {% if tier.is_bta %}<span class="tier-bta-label"> (BTA)</span>{% endif %}
         </span>
-        <span class="tier-count">
+        <span class="tier-count text-meta-muted">
           {{ tier.owned | length }} owned / {{ tier.unowned | length }} new
         </span>
       </div>
@@ -90,10 +90,10 @@
   </section>
   {% elif pricing %}
   <section class="inspector-formats">
-    <h3 class="section-heading">Pricing Tiers</h3>
+    <h3 class="section-heading text-heading-uppercase">Pricing Tiers</h3>
     {% for tier in pricing %}
-    <div class="meta-row">
-      <span class="meta-label">
+    <div class="meta-row surface-list-row">
+      <span class="meta-label text-heading-uppercase">
         {% if tier.header %}{{ tier.header }}{% else %}Tier {{ loop.index }}{% endif %}
       </span>
       <span class="meta-value">${{ "%.2f" % tier.amount }} {{ tier.currency }}{% if tier.is_bta %} (BTA){% endif %}</span>
