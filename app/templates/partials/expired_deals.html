@@ -1,0 +1,43 @@
+{% if error %}
+<div class="error-alert" style="padding:var(--space-4);margin:var(--space-4);background:#fee2e2;color:#991b1b;border-radius:var(--radius-md);border:1px solid #fca5a5;">
+  ⚠️ {{ error }}
+</div>
+{% else %}
+<section class="expired-section">
+  <h3 class="expired-section-heading">📜 Expired Bundle Evaluations</h3>
+  <p class="expired-section-subtitle">Click any bundle to inspect its saved evaluation details</p>
+  {% if expired_bundles %}
+  <div class="expired-bundle-list">
+    {% for entry in expired_bundles %}
+    <article
+      class="expired-bundle-row result-row"
+      tabindex="0"
+      hx-get="/deals/inspect_expired?url={{ entry.url | urlencode }}"
+      hx-target="#deal-inspector-drawer"
+      hx-swap="innerHTML"
+      hx-indicator="#deal-inspector-drawer"
+      hx-on:click="document.querySelectorAll('.expired-bundle-row.selected').forEach(function(el){el.classList.remove('selected')}); this.classList.add('selected');"
+    >
+      <div class="expired-bundle-info">
+        <span class="expired-bundle-name">{{ entry.bundle_name }}</span>
+        <span class="expired-bundle-meta">
+          Ended: {{ entry.end_date[:10] if entry.end_date else "N/A" }}
+          &nbsp;|&nbsp;
+          Expired: {{ entry.expired_at[:10] if entry.expired_at else "N/A" }}
+        </span>
+      </div>
+      <div class="expired-bundle-stats">
+        {% set eval_data = entry.evaluation or {} %}
+        <span class="expired-stat">{{ eval_data.get("total_items", 0) }} items</span>
+        <span class="expired-stat overlap">{{ eval_data.get("overlap_percentage", 0.0) }}% overlap</span>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>No expired bundle evaluations recorded yet.</p>
+  </div>
+  {% endif %}
+</section>
+{% endif %}

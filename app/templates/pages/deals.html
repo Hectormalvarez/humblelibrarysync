@@ -4,8 +4,26 @@
 <div class="app-workspace">
   <div class="master-pane">
     <div class="control-bar">
-      <h1 class="view-title">Live Deal Inspector</h1>
+      <h1 class="view-title">Deal Inspector</h1>
       <p class="view-subtitle">Evaluate active Humble Bundles against your owned library in real-time.</p>
+      <div class="mode-switcher">
+        <button
+          class="mode-pill active"
+          id="pill-live"
+          hx-get="/deals/live"
+          hx-target="#deal-stream"
+          hx-swap="innerHTML"
+          hx-on:click="document.getElementById('pill-live').classList.add('active'); document.getElementById('pill-expired').classList.remove('active');"
+        >⚡ Live Bundles</button>
+        <button
+          class="mode-pill"
+          id="pill-expired"
+          hx-get="/deals/expired"
+          hx-target="#deal-stream"
+          hx-swap="innerHTML"
+          hx-on:click="document.getElementById('pill-expired').classList.add('active'); document.getElementById('pill-live').classList.remove('active');"
+        >📜 Expired Deals</button>
+      </div>
     </div>
 
     <div
@@ -22,7 +40,7 @@
         <div class="overview-header">
           <h2 class="overview-title">Bundle Inspector</h2>
           <p class="overview-subtitle">
-            Select a live bundle to inspect tier value and library overlap.
+            Select a live or expired bundle to inspect tier value and library overlap.
           </p>
         </div>
         <div class="overview-hint">

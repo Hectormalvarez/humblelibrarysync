@@ -10,10 +10,13 @@ from app.dependencies import get_db
 from bundle_inspector import (
     evaluate_deal,
     fetch_bundle_items,
+    get_expired_entries,
     load_active_bundles,
+    load_evaluated_bundles_log,
     log_evaluated_bundle,
+    mark_expired_entries,
 )
-from models import Item
+from models import EvaluatedBundle, Item
 
 router = APIRouter()
 
@@ -74,6 +77,83 @@ def deals_live(request: Request):
         "partials/deal_list.html",
         {"categories": categories},
     )
+
+
+@router.get("/deals/expired")
+def deals_expired(request: Request):
+    """
+    HTMX partial – marks past deals as expired, fetches all evaluated
+    bundle logs, filters to expired entries, and renders the expired_deals
+    partial with a clickable list of past bundle evaluations.
+    """
+    # 1. Transition past deals to expired state
+    try:
+        mark_expired_entries()
+    except Exception:
+        pass  # Non-critical
+
+    # 2. Fetch all log records
+    try:
+        all_entries = load_evaluated_bundles_log()
+    except Exception as e:
+        return templates.TemplateResponse(
+            request,
+            "partials/expired_deals.html",
+            {"error": str(e)},
+        )
+
+    # 3. Filter to expired entries
+    expired_bundles = get_expired_entries(all_entries)
+
+    return templates.TemplateResponse(
+        request,
+        "partials/expired_deals.html",
+        {"expired_bundles": expired_bundles},
+    )
+
+
+@router.get("/deals/inspect_expired")
+def deals_inspect_expired(
+    request: Request,
+    url: str = Query(...),
+):
+    """
+    HTMX partial – fetches a saved EvaluatedBundle record by URL and
+    renders the deal inspector drawer using the stored evaluation data.
+    """
+    from database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        record = db.query(EvaluatedBundle).filter(
+            EvaluatedBundle.url == url
+        ).first()
+
+        if not record:
+            return templates.TemplateResponse(
+                request,
+                "partials/deal_inspector.html",
+                {"error": "Expired bundle not found.", "url": url},
+            )
+
+        eval_data = record.evaluation or {}
+
+        return templates.TemplateResponse(
+            request,
+            "partials/deal_inspector.html",
+            {
+                "url": url,
+                "bundle_name": record.bundle_name,
+                "total_items": eval_data.get("total_items", 0),
+                "matched_count": eval_data.get("matched_count", 0),
+                "overlap_percentage": eval_data.get("overlap_percentage", 0.0),
+                "new_items_count": len(eval_data.get("new_items", [])),
+                "pricing": eval_data.get("pricing", []),
+                "tier_breakdown": eval_data.get("tier_breakdown", []),
+            },
+        )
+    finally:
+        db.close()
 
 
 @router.get("/deals/reset")
