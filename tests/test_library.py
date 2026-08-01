@@ -1214,6 +1214,10 @@ def test_home_page_sync_sort_dropdown(client):
     assert '<option value="count_desc">Most Items</option>' in response.text
     assert '<option value="count_asc">Least Items</option>' in response.text
 
+    # Bundles view date sort options
+    assert '<option value="date_desc">Newest Purchase</option>' in response.text
+    assert '<option value="date_asc">Oldest Purchase</option>' in response.text
+
     # The function should handle the books viewType branch
     assert "viewType === 'books'" in response.text
     # The function should handle the publishers/bundles viewType branch
@@ -1224,3 +1228,63 @@ def test_home_page_sync_sort_dropdown(client):
     assert "currentValue === 'count_desc'" in response.text
     # The dropdown reset logic: publisher_asc → title_asc for categories
     assert "currentValue === 'publisher_asc'" in response.text
+    # The dropdown reset logic: date desc/asc → title_asc for publishers
+    assert "currentValue === 'date_desc'" in response.text
+
+
+def test_library_bundles_date_desc_sort(client):
+    """Verify that /library/bundles?sort=date_desc returns bundles ordered
+    by purchase_date descending, with nulls sorted last."""
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        bundle_old = Bundle(title="Oldest Bundle", purchase_date="2020-01-15")
+        bundle_new = Bundle(title="Newest Bundle", purchase_date="2024-06-01")
+        bundle_none = Bundle(title="No Date Bundle", purchase_date=None)
+        db.add_all([bundle_old, bundle_new, bundle_none])
+        db.flush()
+
+        for b in [bundle_old, bundle_new, bundle_none]:
+            db.add(
+                Item(
+                    bundle_id=b.id,
+                    title=f"{b.title} Item",
+                    publisher="Date Sort Publisher",
+                    item_type="download",
+                    available_formats=["PDF"],
+                    downloads={},
+                )
+            )
+        db.commit()
+    finally:
+        db.close()
+
+    try:
+        resp = client.get("/library/bundles?sort=date_desc")
+        assert resp.status_code == 200
+        bundles = resp.context["bundles"]
+        names = [b["name"] for b in bundles]
+        # Newest first, oldest second, null last
+        assert names[0] == "Newest Bundle"
+        assert names[1] == "Oldest Bundle"
+        assert names[2] == "No Date Bundle"
+        # Verify purchase_date is present in context
+        assert bundles[0]["purchase_date"] == "2024-06-01"
+        assert bundles[1]["purchase_date"] == "2020-01-15"
+        assert bundles[2]["purchase_date"] is None
+    finally:
+        cleanup = SessionLocal()
+        try:
+            cleanup.query(Item).filter(
+                Item.title.in_([
+                    "Oldest Bundle Item",
+                    "Newest Bundle Item",
+                    "No Date Bundle Item",
+                ])
+            ).delete()
+            cleanup.query(Bundle).filter(
+                Bundle.title.in_(["Oldest Bundle", "Newest Bundle", "No Date Bundle"])
+            ).delete()
+            cleanup.commit()
+        finally:
+            cleanup.close()

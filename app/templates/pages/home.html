@@ -144,12 +144,25 @@
             } else {
               sortSelect.value = currentValue;
             }
-          } else if (viewType === 'publishers' || viewType === 'bundles') {
+          } else if (viewType === 'publishers') {
             sortSelect.innerHTML =
               '<option value="title_asc">Name (A to Z)</option>' +
               '<option value="title_desc">Name (Z to A)</option>' +
               '<option value="count_desc">Most Items</option>' +
               '<option value="count_asc">Least Items</option>';
+            if (currentValue === 'publisher_asc' || currentValue === 'date_desc' || currentValue === 'date_asc') {
+              sortSelect.value = 'title_asc';
+            } else {
+              sortSelect.value = currentValue;
+            }
+          } else if (viewType === 'bundles') {
+            sortSelect.innerHTML =
+              '<option value="title_asc">Name (A to Z)</option>' +
+              '<option value="title_desc">Name (Z to A)</option>' +
+              '<option value="count_desc">Most Items</option>' +
+              '<option value="count_asc">Least Items</option>' +
+              '<option value="date_desc">Newest Purchase</option>' +
+              '<option value="date_asc">Oldest Purchase</option>';
             if (currentValue === 'publisher_asc') {
               sortSelect.value = 'title_asc';
             } else {

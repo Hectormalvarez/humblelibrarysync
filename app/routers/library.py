@@ -27,7 +27,7 @@ _PREFIX_RE = re.compile(
 )
 
 _VALID_SEARCH_SORTS = {"title_asc", "title_desc", "publisher_asc"}
-_VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc"}
+_VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc", "date_desc", "date_asc"}
 
 
 def get_sort_key(title: str) -> str:
@@ -276,7 +276,7 @@ def library_bundles(
     """
     active_sort = _normalize_category_sort(sort)
     base_query = (
-        db.query(Bundle.id, Bundle.title, func.count(Item.id).label("count"))
+        db.query(Bundle.id, Bundle.title, Bundle.purchase_date, func.count(Item.id).label("count"))
         .join(Item, Item.bundle_id == Bundle.id)
     )
     if q:
@@ -291,8 +291,8 @@ def library_bundles(
             .all()
         )
         bundles_raw = [
-            {"id": id, "name": name, "count": count}
-            for id, name, count in rows
+            {"id": id, "name": name, "purchase_date": purchase_date, "count": count}
+            for id, name, purchase_date, count in rows
         ]
         reverse = active_sort == "title_desc"
         bundles_raw.sort(key=lambda b: get_sort_key(b["name"]), reverse=reverse)
@@ -304,7 +304,23 @@ def library_bundles(
             .order_by(func.count(Item.id).asc())
             .all()
         )
-        bundles = [{"id": id, "name": name, "count": count} for id, name, count in rows]
+        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
+    elif active_sort == "date_desc":
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .order_by(Bundle.purchase_date.desc().nulls_last())
+            .all()
+        )
+        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
+    elif active_sort == "date_asc":
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .order_by(Bundle.purchase_date.asc().nulls_last())
+            .all()
+        )
+        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
     else:  # count_desc (default for category views)
         rows = (
             base_query
@@ -312,7 +328,7 @@ def library_bundles(
             .order_by(func.count(Item.id).desc())
             .all()
         )
-        bundles = [{"id": id, "name": name, "count": count} for id, name, count in rows]
+        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
 
     return templates.TemplateResponse(
         request,

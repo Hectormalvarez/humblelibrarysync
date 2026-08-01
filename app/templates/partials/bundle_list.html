@@ -12,6 +12,9 @@
       <span class="result-title">{{ bundle.name }}</span>
     </div>
     <div class="result-actions">
+      {% if bundle.purchase_date %}
+      <span class="purchase-date">{{ bundle.purchase_date[:10] }}</span>
+      {% endif %}
       <span class="count-badge">{{ bundle.count }} item{% if bundle.count != 1 %}s{% endif %}</span>
     </div>
   </article>
