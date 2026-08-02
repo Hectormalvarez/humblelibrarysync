@@ -1646,18 +1646,8 @@ main.container:has(.app-workspace) {
   color: var(--color-text-muted);
 }
 
-.tier-item--owned::before {
-  content: "[x] ";
-  color: var(--color-success);
-}
-
 .tier-item--unowned {
   color: var(--color-text-primary);
-}
-
-.tier-item--unowned::before {
-  content: "[+] ";
-  color: var(--color-accent);
 }
 
 /* ----- Section Heading (reusable) ----- */
@@ -1791,9 +1781,22 @@ main.container:has(.app-workspace) {
   margin: 0;
 }
 
+/* ----- Screen Reader Only Utility ----- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 /* ================================================================
-   10. ACCESSIBILITY
-   ================================================================ */
+    10. ACCESSIBILITY
+    ================================================================ */
 
 /*
  * Respect user preference for reduced motion.  When the OS-level

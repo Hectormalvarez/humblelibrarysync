@@ -79,10 +79,10 @@
       {% endif %}
       <ul class="tier-list">
         {% for title in tier.owned %}
-        <li class="tier-item tier-item--owned">{{ title }}</li>
+        <li class="tier-item tier-item--owned"><span aria-hidden="true">[x]</span> <span class="sr-only">Owned:</span> {{ title }}</li>
         {% endfor %}
         {% for title in tier.unowned %}
-        <li class="tier-item tier-item--unowned">{{ title }}</li>
+        <li class="tier-item tier-item--unowned"><span aria-hidden="true">[+]</span> <span class="sr-only">New:</span> {{ title }}</li>
         {% endfor %}
       </ul>
     </div>

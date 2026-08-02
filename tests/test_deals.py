@@ -124,9 +124,9 @@ class TestDealsInspect:
         assert "0.0% Owned" in response.text
         assert "Pricing Tiers" in response.text
         # Check tier breakdown: all items unowned
-        assert "[+] Book One" in response.text
-        assert "[+] Book Two" in response.text
-        assert "[+] Book Three" in response.text
+        assert "[+]</span> <span class=\"sr-only\">New:</span> Book One" in response.text
+        assert "[+]</span> <span class=\"sr-only\">New:</span> Book Two" in response.text
+        assert "[+]</span> <span class=\"sr-only\">New:</span> Book Three" in response.text
 
     def test_deals_inspect_handles_fetch_error(self, client: TestClient):
         with patch(
@@ -220,9 +220,9 @@ class TestDealsInspect:
         # 1 out of 3 = 33.3% owned
         assert "33.3% Owned" in response.text
         # Book One should be owned
-        assert "[x] Book One" in response.text
-        assert "[+] Book Two" in response.text
-        assert "[+] Book Three" in response.text
+        assert "[x]</span> <span class=\"sr-only\">Owned:</span> Book One" in response.text
+        assert "[+]</span> <span class=\"sr-only\">New:</span> Book Two" in response.text
+        assert "[+]</span> <span class=\"sr-only\">New:</span> Book Three" in response.text
 
         # Clean up the test data to avoid leaking into other tests
         db = SessionLocal()
@@ -391,9 +391,9 @@ class TestDealsInspectExpired:
             assert "25.0% Owned" in response.text
             assert "8" in response.text  # total_items
             # Verify tier breakdown is rendered
-            assert "[x] Owned Item A" in response.text
-            assert "[+] New Item X" in response.text
-            assert "[+] New Item Y" in response.text
+            assert "[x]</span> <span class=\"sr-only\">Owned:</span> Owned Item A" in response.text
+            assert "[+]</span> <span class=\"sr-only\">New:</span> New Item X" in response.text
+            assert "[+]</span> <span class=\"sr-only\">New:</span> New Item Y" in response.text
         finally:
             # Clean up
             db = SessionLocal()

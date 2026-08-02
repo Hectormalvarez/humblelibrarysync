@@ -15,17 +15,13 @@ from database import Base, engine
 import pytest
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def clean_test_database():
-    """Remove the test database file before the session starts so each run
-    begins from a clean slate, then create the schema."""
-    db_path = os.path.abspath("test_humble_library.db")
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    """Drop and recreate the schema before every test function so each test
+    starts from a clean slate, preventing data pollution between tests."""
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
-    if os.path.exists(db_path):
-        os.remove(db_path)
 
 
 @pytest.fixture
