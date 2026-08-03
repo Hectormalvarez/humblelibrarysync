@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humble_sync"
+version = "0.1.0"
+description = "A modular Python toolkit to capture, parse, persist, and analyze your Humble Bundle purchases."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Humble Library Sync Contributors" },
+]
+keywords = ["humble-bundle", "library", "sync", "cli", "fastapi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "beautifulsoup4==4.12.3",
+    "greenlet==3.5.4",
+    "playwright==1.61.0",
+    "prompt_toolkit==3.0.53",
+    "pyee==13.0.1",
+    "questionary==2.1.1",
+    "requests==2.32.3",
+    "typing_extensions==4.16.0",
+    "wcwidth==0.8.2",
+    "sqlalchemy==2.0.51",
+    "fastapi==0.141.1",
+    "uvicorn==0.52.1",
+    "jinja2==3.1.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "httpx==0.28.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/humblelibrarysync/humblelibrarysync"
+Repository = "https://github.com/humblelibrarysync/humblelibrarysync"
+Issues = "https://github.com/humblelibrarysync/humblelibrarysync/issues"
+
+[tool.setuptools.packages.find]
+include = ["humble_sync*", "app*"]
+exclude = ["tests*"]

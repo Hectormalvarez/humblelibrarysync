@@ -27,3 +27,10 @@ expired_reading_list.txt
 .playwright/
 auth.json
 raw_library_dump.json
+
+# Packaging / build artifacts
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
