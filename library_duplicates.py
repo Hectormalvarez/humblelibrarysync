@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from database import SessionLocal
-from models import Bundle, Item
+from humble_sync.db.database import SessionLocal
+from humble_sync.db.models import Bundle, Item
 
 
 def normalize_title(title: str) -> str:

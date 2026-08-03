@@ -6,4 +6,4 @@ routers, making it easy to override the database in future tests without
 refactoring core logic.
 """
 
-from database import get_db
+from humble_sync.db.database import get_db

@@ -7,8 +7,8 @@ from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.key_binding import KeyBindings
 
-from database import SessionLocal
-from models import Bundle, Item
+from humble_sync.db.database import SessionLocal
+from humble_sync.db.models import Bundle, Item
 
 
 def search_catalog(items: list[dict], query: str) -> list[dict]:

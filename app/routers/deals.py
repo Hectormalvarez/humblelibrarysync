@@ -16,7 +16,7 @@ from bundle_inspector import (
     log_evaluated_bundle,
     mark_expired_entries,
 )
-from models import EvaluatedBundle, Item
+from humble_sync.db.models import EvaluatedBundle, Item
 
 router = APIRouter()
 
@@ -121,7 +121,7 @@ def deals_inspect_expired(
     HTMX partial – fetches a saved EvaluatedBundle record by URL and
     renders the deal inspector drawer using the stored evaluation data.
     """
-    from database import SessionLocal
+    from humble_sync.db.database import SessionLocal
 
     db = SessionLocal()
     try:

@@ -10,7 +10,7 @@ from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from models import Bundle, Item
+from humble_sync.db.models import Bundle, Item
 
 router = APIRouter()
 

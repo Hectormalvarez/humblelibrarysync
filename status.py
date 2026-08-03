@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from database import SessionLocal
-from models import Bundle, Item
+from humble_sync.db.database import SessionLocal
+from humble_sync.db.models import Bundle, Item
 
 
 def check_status(library_file: str | Path | None = None) -> dict[str, Any]:

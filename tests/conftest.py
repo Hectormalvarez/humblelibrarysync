@@ -11,7 +11,7 @@ os.environ["DATABASE_URL"] = "sqlite:///./test_humble_library.db"
 
 from fastapi.testclient import TestClient
 from app.main import app
-from database import Base, engine
+from humble_sync.db.database import Base, engine
 import pytest
 
 

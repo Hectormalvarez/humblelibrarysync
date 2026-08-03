@@ -143,8 +143,8 @@ class TestDealsInspect:
 
     def test_deals_inspect_with_partial_overlap(self, client: TestClient):
         """With library items loaded, test overlap calculation."""
-        from database import SessionLocal
-        from models import Bundle, Item
+        from humble_sync.db.database import SessionLocal
+        from humble_sync.db.models import Bundle, Item
 
         # Insert a library item that matches one of the bundle items
         db = SessionLocal()
@@ -329,8 +329,8 @@ class TestDealsInspectExpired:
 
     def test_deals_inspect_expired_returns_200_with_data(self, client: TestClient):
         """Verify inspect_expired loads saved evaluation data into the inspector."""
-        from database import SessionLocal
-        from models import EvaluatedBundle
+        from humble_sync.db.database import SessionLocal
+        from humble_sync.db.models import EvaluatedBundle
 
         # Insert a test EvaluatedBundle record
         db = SessionLocal()

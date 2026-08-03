@@ -23,8 +23,8 @@ from library_duplicates import find_duplicates, format_duplicate_report, load_li
 from parse import export_to_csv, export_to_json, export_to_txt, parse_dump, sync_catalog_to_db
 from search import format_search_results, live_search_prompt, search_catalog
 from status import check_status, format_status_report
-from database import SessionLocal, reset_database
-from models import Item
+from humble_sync.db.database import SessionLocal, reset_database
+from humble_sync.db.models import Item
 
 
 def clear_screen() -> None:

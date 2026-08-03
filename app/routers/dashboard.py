@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.dependencies import get_db
-from models import Item
+from humble_sync.db.models import Item
 
 router = APIRouter()
 

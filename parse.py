@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
-from database import SessionLocal, init_db
-from models import Bundle, Item
+from humble_sync.db.database import SessionLocal, init_db
+from humble_sync.db.models import Bundle, Item
 
 
 def extract_expiration_from_url(url_string: str) -> Optional[str]:

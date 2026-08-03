@@ -3,8 +3,8 @@ Tests for the library search feature endpoints.
 """
 
 from app.routers.library import get_sort_key
-from models import Bundle, Item
-from database import SessionLocal, Base, engine, reset_database
+from humble_sync.db.models import Bundle, Item
+from humble_sync.db.database import SessionLocal, Base, engine, reset_database
 
 
 def test_library_search_endpoint(client):

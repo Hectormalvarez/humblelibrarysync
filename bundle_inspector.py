@@ -11,9 +11,9 @@ from typing import Any
 import requests
 from bs4 import BeautifulSoup
 
-from database import SessionLocal, init_db
+from humble_sync.db.database import SessionLocal, init_db
 from library_duplicates import normalize_title
-from models import EvaluatedBundle
+from humble_sync.db.models import EvaluatedBundle
 
 
 # Browser User-Agent to avoid bot detection
