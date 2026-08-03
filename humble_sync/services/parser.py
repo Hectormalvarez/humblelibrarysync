@@ -182,16 +182,21 @@ def export_to_txt(catalog: dict[str, Any], output_file: str | Path) -> None:
             f.write(f"{item['title']}\n")
 
 
-def sync_catalog_to_db(catalog_data: dict[str, Any]) -> None:
+def sync_catalog_to_db(catalog_data: dict[str, Any], db_session=None) -> None:
     """Syncs parsed catalog data into the database using upsert logic for idempotency.
 
     This function can be safely re-run without creating duplicates:
     - Existing bundles are matched by title
     - Existing items are matched by (bundle_id, title) combination
     - If a match is found, the record is updated; otherwise, a new record is created
+
+    Args:
+        catalog_data: The catalog dictionary with 'items' key.
+        db_session: Optional SQLAlchemy session. If None, a new session is created.
     """
     init_db()
-    db = SessionLocal()
+    owns_session = db_session is None
+    db = db_session if db_session is not None else SessionLocal()
     try:
         bundles_by_title: dict[str, list[dict]] = {}
         for item in catalog_data["items"]:
@@ -244,4 +249,5 @@ def sync_catalog_to_db(catalog_data: dict[str, Any]) -> None:
         db.rollback()
         raise
     finally:
-        db.close()
+        if owns_session:
+            db.close()

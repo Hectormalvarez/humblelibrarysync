@@ -1,6 +1,6 @@
 """Service modules for Humble Library Sync business logic."""
 
-from humble_sync.services import parser, duplicates, status, evaluator
+from humble_sync.services import parser, duplicates, status, evaluator, client
 from humble_sync.services.evaluator import (
     capture_active_bundles,
     evaluate_deal,
@@ -16,12 +16,18 @@ from humble_sync.services.evaluator import (
     mark_expired_entries,
     parse_bundles_dump,
 )
+from humble_sync.services.client import (
+    HumbleAPIClient,
+    normalize_orders_to_catalog,
+    sync_account_library,
+)
 
 __all__ = [
     "parser",
     "duplicates",
     "status",
     "evaluator",
+    "client",
     "capture_active_bundles",
     "evaluate_deal",
     "fetch_bundle_items",
@@ -35,4 +41,7 @@ __all__ = [
     "log_evaluated_bundle",
     "mark_expired_entries",
     "parse_bundles_dump",
+    "HumbleAPIClient",
+    "normalize_orders_to_catalog",
+    "sync_account_library",
 ]
