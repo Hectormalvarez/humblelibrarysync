@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 import questionary
 
-from bundle_inspector import (
+from humble_sync.services.evaluator import (
     evaluate_deal,
     fetch_bundle_items,
     format_deal_report,
@@ -300,7 +300,7 @@ def run_interactive_menu() -> None:
                     elif cat_selected == "🔄 Refresh Bundle List":
                         try:
                             print("[*] Refreshing active bundles...")
-                            from bundle_inspector import capture_active_bundles
+                            from humble_sync.services.evaluator import capture_active_bundles
                             capture_active_bundles(force=True)
                         except RuntimeError as e:
                             print(e)
