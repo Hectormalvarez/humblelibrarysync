@@ -12,7 +12,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from humble_sync.db.database import SessionLocal, init_db
-from library_duplicates import normalize_title
+from humble_sync.services.duplicates import normalize_title
 from humble_sync.db.models import EvaluatedBundle
 
 
