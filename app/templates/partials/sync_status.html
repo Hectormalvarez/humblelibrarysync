@@ -1,0 +1,19 @@
+{% if error %}
+<div class="error-alert">
+  <strong>Sync failed:</strong> {{ error }}
+</div>
+{% else %}
+<div class="stat-grid">
+  <div class="stat-card surface-card">
+    <span class="stat-label text-heading-uppercase">Items Synced</span>
+    <span class="stat-value">{{ total_items }}</span>
+  </div>
+  <div class="stat-card surface-card">
+    <span class="stat-label text-heading-uppercase">Bundles Synced</span>
+    <span class="stat-value">{{ total_bundles }}</span>
+  </div>
+</div>
+<p style="margin-block-start:var(--space-3);font-size:var(--text-sm);color:var(--color-success-dark);font-weight:500;">
+  ✓ Library synced successfully.
+</p>
+{% endif %}

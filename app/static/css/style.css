@@ -1913,8 +1913,35 @@ main.container:has(.app-workspace) {
 }
 
 /* ================================================================
-   12. DARK MODE
-   ================================================================ */
+    12. SYNC MODAL OVERLAY
+    Lightweight overlay for the session cookie sync drawer.
+    Reuses existing design tokens and structural classes.
+    ================================================================ */
+
+.sync-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.sync-modal-panel {
+  width: min(480px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-5);
+}
+
+/* ================================================================
+    13. DARK MODE
+    ================================================================ */
 
 /*
  * Dark mode support using prefers-color-scheme media query.

@@ -11,9 +11,14 @@
   <nav>
     <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">📚 Library Browser</a>
     <a href="/deals" class="nav-link {% if request.url.path == '/deals' %}active{% endif %}">🌐 Deal Inspector</a>
+    <a href="#" class="nav-link"
+       hx-get="/library/sync/modal"
+       hx-target="#sync-modal-container"
+       hx-swap="innerHTML">Sync Library 🔄</a>
   </nav>
   <main class="container">
     {% block content %}{% endblock %}
   </main>
+  <div id="sync-modal-container"></div>
 </body>
 </html>

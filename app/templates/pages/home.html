@@ -250,7 +250,8 @@
   </div>
 </div>
 <script>
-  // Global Escape key shortcut: 3-tier cancellation cascade.
+  // Global Escape key shortcut: 4-tier cancellation cascade.
+  // Tier 0 – Open sync modal: clear #sync-modal-container.
   // Tier 1 – Open inspector drawer: click .drawer-close to reset to overview.
   // Tier 2 – Active search: clear #library-search and fire HTMX input event.
   // Tier 3 – Active filter pill: click .filter-clear-btn to remove filters.
@@ -258,6 +259,14 @@
     document.addEventListener('keydown', function (event) {
       var key = event.key;
       if (key !== 'Escape' && key !== 'Esc') return;
+
+      // Tier 0: sync modal is open
+      var syncModal = document.getElementById('sync-modal-overlay');
+      if (syncModal) {
+        var container = document.getElementById('sync-modal-container');
+        if (container) container.innerHTML = '';
+        return;
+      }
 
       // Tier 1: inspector drawer is open (contains a close button)
       var drawerClose = document.querySelector('#inspector-drawer .drawer-close');
@@ -281,6 +290,38 @@
       if (filterClear) {
         filterClear.click();
         return;
+      }
+    });
+  })();
+
+  // htmx:afterSwap listener on #sync-modal-container to refresh the library
+  // overview and master stream after a successful sync.
+  (function () {
+    var modalContainer = document.getElementById('sync-modal-container');
+    if (!modalContainer) return;
+    modalContainer.addEventListener('htmx:afterSwap', function (evt) {
+      // Check if the swap contains a success status (stat-grid present, no error-alert)
+      var status = document.getElementById('sync-status');
+      if (!status) return;
+      var hasError = status.querySelector('.error-alert');
+      var hasSuccess = status.querySelector('.stat-grid');
+      if (hasSuccess && !hasError) {
+        // Refresh the inspector drawer (library overview)
+        var inspector = document.getElementById('inspector-drawer');
+        if (inspector) {
+          htmx.trigger(inspector, 'htmx:abort');
+          inspector.setAttribute('hx-get', '/library/overview');
+          htmx.process(inspector);
+          htmx.trigger(inspector, 'load');
+        }
+        // Refresh the master stream
+        var master = document.getElementById('master-stream');
+        if (master) {
+          htmx.trigger(master, 'htmx:abort');
+          master.setAttribute('hx-get', '/library/search');
+          htmx.process(master);
+          htmx.trigger(master, 'load');
+        }
       }
     });
   })();
