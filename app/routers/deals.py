@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from bundle_inspector import (
+from humble_sync.services.evaluator import (
     evaluate_deal,
     fetch_bundle_items,
     get_expired_entries,
