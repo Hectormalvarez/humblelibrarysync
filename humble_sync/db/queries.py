@@ -5,6 +5,15 @@ from sqlalchemy.orm import Session
 
 from humble_sync.db.models import Bundle, Item
 
+_VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc", "date_desc", "date_asc"}
+
+
+def _normalize_category_sort(sort: str) -> str:
+    """Normalize a sort value for the publishers/bundles endpoints."""
+    if sort in _VALID_CATEGORY_SORTS:
+        return sort
+    return "title_asc"
+
 
 def get_library_metrics(db: Session) -> dict:
     """Return aggregate library metrics for the overview panel.
@@ -78,3 +87,60 @@ def get_top_publishers_and_bundles(db: Session) -> dict:
             {"name": name, "count": count} for name, count in bundle_rows
         ],
     }
+
+
+def get_all_publishers(db: Session, q: str = "", sort: str = "title_asc") -> tuple[list[dict], str]:
+    """Return all publishers with item counts, filtered and sorted.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    q:
+        Optional case-insensitive substring filter on publisher name.
+    sort:
+        Sort key. One of ``title_asc``, ``title_desc``, ``count_desc``,
+        ``count_asc``. Falls back to ``title_asc`` for invalid values.
+
+    Returns
+    -------
+    tuple[list[dict], str]
+        A ``(publishers, active_sort)`` pair where each publisher dict
+        contains ``"name"`` and ``"count"`` keys.
+    """
+    active_sort = _normalize_category_sort(sort)
+    base_query = db.query(Item.publisher, func.count(Item.id).label("count"))
+    if q:
+        base_query = base_query.filter(Item.publisher.ilike(f"%{q}%"))
+
+    if active_sort == "title_desc":
+        rows = (
+            base_query
+            .group_by(Item.publisher)
+            .order_by(Item.publisher.desc())
+            .all()
+        )
+    elif active_sort == "count_desc":
+        rows = (
+            base_query
+            .group_by(Item.publisher)
+            .order_by(func.count(Item.id).desc())
+            .all()
+        )
+    elif active_sort == "count_asc":
+        rows = (
+            base_query
+            .group_by(Item.publisher)
+            .order_by(func.count(Item.id).asc())
+            .all()
+        )
+    else:  # title_asc
+        rows = (
+            base_query
+            .group_by(Item.publisher)
+            .order_by(Item.publisher.asc())
+            .all()
+        )
+
+    publishers = [{"name": name, "count": count} for name, count in rows]
+    return publishers, active_sort

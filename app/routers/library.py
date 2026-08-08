@@ -11,7 +11,12 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from humble_sync.db.models import Bundle, Item
-from humble_sync.db.queries import get_library_metrics, get_top_publishers_and_bundles
+from humble_sync.db.queries import (
+    _normalize_category_sort,
+    get_all_publishers,
+    get_library_metrics,
+    get_top_publishers_and_bundles,
+)
 
 router = APIRouter()
 
@@ -28,7 +33,6 @@ _PREFIX_RE = re.compile(
 )
 
 _VALID_SEARCH_SORTS = {"title_asc", "title_desc", "publisher_asc"}
-_VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc", "date_desc", "date_asc"}
 
 
 def get_sort_key(title: str) -> str:
@@ -43,13 +47,6 @@ def _normalize_search_sort(sort: str) -> str:
     different view (e.g. ``count_desc`` from a category tab).
     """
     if sort in _VALID_SEARCH_SORTS:
-        return sort
-    return "title_asc"
-
-
-def _normalize_category_sort(sort: str) -> str:
-    """Normalize a sort value for the publishers/bundles endpoints."""
-    if sort in _VALID_CATEGORY_SORTS:
         return sort
     return "title_asc"
 
@@ -179,42 +176,7 @@ def library_publishers(
     is swapped into the ``#master-stream`` container, replacing the
     previous view.
     """
-    active_sort = _normalize_category_sort(sort)
-    base_query = db.query(Item.publisher, func.count(Item.id).label("count"))
-    if q:
-        base_query = base_query.filter(Item.publisher.ilike(f"%{q}%"))
-
-    # Apply sort ordering
-    if active_sort == "title_desc":
-        rows = (
-            base_query
-            .group_by(Item.publisher)
-            .order_by(Item.publisher.desc())
-            .all()
-        )
-    elif active_sort == "count_desc":
-        rows = (
-            base_query
-            .group_by(Item.publisher)
-            .order_by(func.count(Item.id).desc())
-            .all()
-        )
-    elif active_sort == "count_asc":
-        rows = (
-            base_query
-            .group_by(Item.publisher)
-            .order_by(func.count(Item.id).asc())
-            .all()
-        )
-    else:  # title_asc
-        rows = (
-            base_query
-            .group_by(Item.publisher)
-            .order_by(Item.publisher.asc())
-            .all()
-        )
-
-    publishers = [{"name": name, "count": count} for name, count in rows]
+    publishers, active_sort = get_all_publishers(db, q=q, sort=sort)
     return templates.TemplateResponse(
         request,
         "partials/publisher_list.html",
