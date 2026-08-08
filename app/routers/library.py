@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from humble_sync.db.models import Bundle, Item
+from humble_sync.db.queries import get_library_metrics
 
 router = APIRouter()
 
@@ -174,35 +175,12 @@ def library_overview(
     default right inspector pane. The rendered partial is swapped into the
     ``#inspector-drawer`` container on page load.
     """
-    total_items = db.query(func.count(Item.id)).scalar() or 0
-    total_publishers = db.query(func.count(distinct(Item.publisher))).scalar() or 0
-    total_bundles = db.query(func.count(Bundle.id)).scalar() or 0
-
-    # Count items per format by scanning the available_formats JSON arrays
-    # in Python. This keeps the query portable across SQL backends (SQLite
-    # stores JSON columns as text, so backend-specific JSON functions would
-    # otherwise be needed).
-    format_counts: dict[str, int] = {}
-    for (formats,) in db.query(Item.available_formats).all():
-        for fmt in formats or []:
-            format_counts[fmt] = format_counts.get(fmt, 0) + 1
-
-    format_breakdown = [
-        {"format": fmt, "count": format_counts[fmt]}
-        for fmt in sorted(
-            format_counts, key=lambda f: (-format_counts[f], f)
-        )
-    ]
+    metrics = get_library_metrics(db)
 
     return templates.TemplateResponse(
         request,
         "partials/library_overview.html",
-        {
-            "total_items": total_items,
-            "total_publishers": total_publishers,
-            "total_bundles": total_bundles,
-            "format_breakdown": format_breakdown,
-        },
+        metrics,
     )
 
 
