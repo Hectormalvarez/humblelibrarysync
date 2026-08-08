@@ -53,3 +53,49 @@ def _fetch_landing_page_data() -> dict[str, Any]:
         return json.loads(script_tag.string)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"[!] Failed to parse bundle JSON data: {e}") from e
+
+
+def _parse_bundles_from_data(page_data: dict[str, Any]) -> list[dict[str, str]]:
+    """
+    Extracts active bundle listings from the raw landing page JSON.
+
+    Iterates over books, games, and software categories, traverses
+    mosaic sections, and extracts product information.
+
+    Args:
+        page_data: The full JSON data from the landing page script tag.
+
+    Returns:
+        List of dicts with keys: title, url, author, end_date, machine_name.
+    """
+    data = page_data.get("data", {})
+    bundles: list[dict[str, str]] = []
+
+    categories = ["books", "games", "software"]
+
+    for category in categories:
+        category_data = data.get(category, {})
+        mosaic = category_data.get("mosaic", [])
+
+        for section in mosaic:
+            products = section.get("products", [])
+            for product in products:
+                tile_name = product.get("tile_name", "")
+                product_url = product.get("product_url", "")
+                author = product.get("author", "")
+                end_date = product.get("end_date|datetime", "")
+                machine_name = product.get("machine_name", "")
+
+                if tile_name and product_url:
+                    if product_url.startswith("/"):
+                        product_url = f"https://www.humblebundle.com{product_url}"
+
+                    bundles.append({
+                        "title": tile_name,
+                        "url": product_url,
+                        "author": author,
+                        "end_date": end_date,
+                        "machine_name": machine_name,
+                    })
+
+    return bundles
