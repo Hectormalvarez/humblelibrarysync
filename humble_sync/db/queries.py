@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from humble_sync.db.models import Bundle, Item
 
 _VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc", "date_desc", "date_asc"}
+_VALID_SEARCH_SORTS = {"title_asc", "title_desc", "publisher_asc"}
 
 # Regex to strip common Humble Bundle title prefixes for smart A-Z sorting.
 # Matches (case-insensitive):
@@ -23,6 +24,17 @@ _PREFIX_RE = re.compile(
 def get_sort_key(title: str) -> str:
     """Return a lowercase, prefix-stripped title suitable for smart A-Z sorting."""
     return _PREFIX_RE.sub("", title).strip().lower()
+
+
+def _normalize_search_sort(sort: str) -> str:
+    """Normalize a sort value for the search endpoint.
+
+    Falls back to ``title_asc`` when the value is invalid or belongs to a
+    different view (e.g. ``count_desc`` from a category tab).
+    """
+    if sort in _VALID_SEARCH_SORTS:
+        return sort
+    return "title_asc"
 
 
 def _normalize_category_sort(sort: str) -> str:
@@ -240,3 +252,83 @@ def get_all_bundles(db: Session, q: str = "", sort: str = "title_asc") -> tuple[
         bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
 
     return bundles, active_sort
+
+
+def search_library_items(
+    db: Session,
+    q: str = "",
+    publisher: str | None = None,
+    bundle_id: int | None = None,
+    sort: str = "title_asc",
+    limit: int = 30,
+    offset: int = 0,
+) -> dict:
+    """Search, filter, sort, and paginate library items.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    q:
+        Optional case-insensitive substring filter on item title.
+    publisher:
+        Optional exact-match filter on publisher name.
+    bundle_id:
+        Optional exact-match filter on bundle id.
+    sort:
+        Sort key. One of ``title_asc``, ``title_desc``, ``publisher_asc``.
+        Falls back to ``title_asc`` for invalid values.
+    limit:
+        Maximum number of items to return.
+    offset:
+        Number of items to skip (for pagination).
+
+    Returns
+    -------
+    dict
+        A dictionary containing:
+        - ``items``: list of ``Item`` ORM objects for the current page.
+        - ``total_count``: total number of items matching the filters.
+        - ``has_more``: whether more items exist beyond the current page.
+        - ``active_publisher``: the publisher filter value (or ``None``).
+        - ``active_bundle``: the ``Bundle`` ORM object if ``bundle_id`` was
+          provided, otherwise ``None``.
+        - ``active_sort``: the resolved sort key.
+    """
+    active_sort = _normalize_search_sort(sort)
+    base_query = db.query(Item)
+
+    # Apply strict equality filters when provided
+    if publisher is not None:
+        base_query = base_query.filter(Item.publisher == publisher)
+    if bundle_id is not None:
+        base_query = base_query.filter(Item.bundle_id == bundle_id)
+    if q:
+        base_query = base_query.filter(Item.title.ilike(f"%{q}%"))
+
+    # Apply sort ordering
+    if active_sort == "title_desc":
+        base_query = base_query.order_by(Item.title.desc())
+    elif active_sort == "publisher_asc":
+        base_query = base_query.order_by(Item.publisher.asc(), Item.title.asc())
+    else:
+        base_query = base_query.order_by(Item.title.asc())
+
+    total_count = base_query.count()
+    items = base_query.offset(offset).limit(limit).all()
+    has_more = (offset + len(items)) < total_count
+
+    # Resolve active filter objects for the filter pill header
+    active_publisher = publisher
+    active_bundle = None
+    if bundle_id is not None:
+        active_bundle = db.query(Bundle).filter(Bundle.id == bundle_id).first()
+
+    return {
+        "items": items,
+        "total_count": total_count,
+        "has_more": has_more,
+        "active_publisher": active_publisher,
+        "active_bundle": active_bundle,
+        "active_sort": active_sort,
+    }

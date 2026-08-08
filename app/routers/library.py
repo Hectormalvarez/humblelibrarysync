@@ -4,7 +4,6 @@ Library router – serves the library search HTMX partial endpoint.
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
@@ -15,24 +14,12 @@ from humble_sync.db.queries import (
     get_library_metrics,
     get_sort_key,
     get_top_publishers_and_bundles,
+    search_library_items,
 )
 
 router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
-
-_VALID_SEARCH_SORTS = {"title_asc", "title_desc", "publisher_asc"}
-
-
-def _normalize_search_sort(sort: str) -> str:
-    """Normalize a sort value for the search endpoint.
-
-    Falls back to ``title_asc`` when the value is invalid or belongs to a
-    different view (e.g. ``count_desc`` from a category tab).
-    """
-    if sort in _VALID_SEARCH_SORTS:
-        return sort
-    return "title_asc"
 
 
 @router.get("/library/search")
@@ -52,44 +39,20 @@ def library_search(
     Supports optional exact-match filters for publisher and bundle_id.
     Designed for HTMX partial rendering.
     """
-    active_sort = _normalize_search_sort(sort)
-    base_query = db.query(Item)
+    result = search_library_items(
+        db,
+        q=q,
+        publisher=publisher,
+        bundle_id=bundle_id,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+    )
 
-    # Apply strict equality filters when provided
-    if publisher is not None:
-        base_query = base_query.filter(Item.publisher == publisher)
-    if bundle_id is not None:
-        base_query = base_query.filter(Item.bundle_id == bundle_id)
-    if q:
-        base_query = base_query.filter(Item.title.ilike(f"%{q}%"))
-
-    # Apply sort ordering
-    if active_sort == "title_desc":
-        base_query = base_query.order_by(Item.title.desc())
-    elif active_sort == "publisher_asc":
-        base_query = base_query.order_by(Item.publisher.asc(), Item.title.asc())
-    else:
-        base_query = base_query.order_by(Item.title.asc())
-
-    total_count = base_query.count()
-    items = base_query.offset(offset).limit(limit).all()
-    has_more = (offset + len(items)) < total_count
-
-    # Resolve active filter objects for the filter pill header
-    active_publisher = publisher
-    active_bundle = None
-    if bundle_id is not None:
-        active_bundle = db.query(Bundle).filter(Bundle.id == bundle_id).first()
-
-    # Initial page load state (empty search, first page): aggregate top
-    # publishers and bundles so the home page can show category stats.
-    if q == "" and publisher is None and bundle_id is None and offset == 0:
-        summaries = get_top_publishers_and_bundles(db)
-        publishers_summary = summaries["publishers_summary"]
-        bundles_summary = summaries["bundles_summary"]
-    else:
-        publishers_summary = []
-        bundles_summary = []
+    # Add request-specific context for template rendering
+    result["q"] = q
+    result["limit"] = limit
+    result["offset"] = offset
 
     # For pagination requests (offset > 0), return only the item rows partial
     # so HTMX can swap them in without re-rendering the filter bar or wrapper.
@@ -97,33 +60,23 @@ def library_search(
         return templates.TemplateResponse(
             request,
             "partials/item_rows.html",
-            {
-                "items": items,
-                "limit": limit,
-                "offset": offset,
-                "has_more": has_more,
-                "q": q,
-                "active_publisher": active_publisher,
-                "active_bundle": active_bundle,
-                "active_sort": active_sort,
-            },
+            result,
         )
+
+    # Initial page load state (empty search, first page): aggregate top
+    # publishers and bundles so the home page can show category stats.
+    if q == "" and publisher is None and bundle_id is None:
+        summaries = get_top_publishers_and_bundles(db)
+        result["publishers_summary"] = summaries["publishers_summary"]
+        result["bundles_summary"] = summaries["bundles_summary"]
+    else:
+        result["publishers_summary"] = []
+        result["bundles_summary"] = []
 
     return templates.TemplateResponse(
         request,
         "partials/search_results.html",
-        {
-            "items": items,
-            "limit": limit,
-            "offset": offset,
-            "has_more": has_more,
-            "q": q,
-            "publishers_summary": publishers_summary,
-            "bundles_summary": bundles_summary,
-            "active_publisher": active_publisher,
-            "active_bundle": active_bundle,
-            "active_sort": active_sort,
-        },
+        result,
     )
 
 
