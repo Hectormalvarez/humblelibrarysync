@@ -8,15 +8,15 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from humble_sync.config import BUNDLES_DUMP_PATH, CACHE_TTL_SECONDS
 from humble_sync.services.scraper import (
     _fetch_landing_page_data,
     _parse_bundles_from_data,
 )
 
-
-# Default paths and TTL
-_BUNDLES_DUMP_PATH = Path("raw_bundles_dump.json")
-_CACHE_TTL_SECONDS = 3600  # 1 hour
+# Backward-compatible private aliases
+_BUNDLES_DUMP_PATH = BUNDLES_DUMP_PATH
+_CACHE_TTL_SECONDS = CACHE_TTL_SECONDS
 
 
 def _any_bundle_expired(bundles: list[dict[str, str]]) -> bool:

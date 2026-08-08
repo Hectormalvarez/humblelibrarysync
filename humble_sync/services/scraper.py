@@ -9,15 +9,11 @@ from typing import Any
 import requests
 from bs4 import BeautifulSoup
 
+from humble_sync.config import BUNDLES_URL, USER_AGENT
 
-# Browser User-Agent to avoid bot detection
-_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
-
-# Humble Bundle URLs
-_BUNDLES_URL = "https://www.humblebundle.com/bundles"
+# Backward-compatible private aliases
+_USER_AGENT = USER_AGENT
+_BUNDLES_URL = BUNDLES_URL
 
 
 def _fetch_landing_page_data() -> dict[str, Any]:
