@@ -2,8 +2,6 @@
 Library router – serves the library search HTMX partial endpoint.
 """
 
-import re
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import distinct, func
@@ -12,9 +10,10 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db
 from humble_sync.db.models import Bundle, Item
 from humble_sync.db.queries import (
-    _normalize_category_sort,
+    get_all_bundles,
     get_all_publishers,
     get_library_metrics,
+    get_sort_key,
     get_top_publishers_and_bundles,
 )
 
@@ -22,22 +21,7 @@ router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
 
-# Regex to strip common Humble Bundle title prefixes for smart A-Z sorting.
-# Matches (case-insensitive):
-#   - "Humble <sub-bundle> Bundle: " (e.g. "Humble Book Bundle: ")
-#   - "Humble " (e.g. "Humble Foo")
-#   - "The " (e.g. "The Foo")
-_PREFIX_RE = re.compile(
-    r"^(?:humble\s+(?:[a-z0-9-]+\s+)?bundle:\s*|humble\s+|the\s+)",
-    re.IGNORECASE,
-)
-
 _VALID_SEARCH_SORTS = {"title_asc", "title_desc", "publisher_asc"}
-
-
-def get_sort_key(title: str) -> str:
-    """Return a lowercase, prefix-stripped title suitable for smart A-Z sorting."""
-    return _PREFIX_RE.sub("", title).strip().lower()
 
 
 def _normalize_search_sort(sort: str) -> str:
@@ -196,62 +180,7 @@ def library_bundles(
     with the total number of items contained in it.  The rendered partial
     is swapped into the ``#master-stream`` container.
     """
-    active_sort = _normalize_category_sort(sort)
-    base_query = (
-        db.query(Bundle.id, Bundle.title, Bundle.purchase_date, func.count(Item.id).label("count"))
-        .join(Item, Item.bundle_id == Bundle.id)
-    )
-    if q:
-        base_query = base_query.filter(Bundle.title.ilike(f"%{q}%"))
-
-    if active_sort in ("title_asc", "title_desc"):
-        # For title sorts, fetch all rows then sort in Python using the
-        # prefix-stripping helper so "Humble Book Bundle: Foo" sorts as "foo".
-        rows = (
-            base_query
-            .group_by(Bundle.id)
-            .all()
-        )
-        bundles_raw = [
-            {"id": id, "name": name, "purchase_date": purchase_date, "count": count}
-            for id, name, purchase_date, count in rows
-        ]
-        reverse = active_sort == "title_desc"
-        bundles_raw.sort(key=lambda b: get_sort_key(b["name"]), reverse=reverse)
-        bundles = bundles_raw
-    elif active_sort == "count_asc":
-        rows = (
-            base_query
-            .group_by(Bundle.id)
-            .order_by(func.count(Item.id).asc())
-            .all()
-        )
-        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
-    elif active_sort == "date_desc":
-        rows = (
-            base_query
-            .group_by(Bundle.id)
-            .order_by(Bundle.purchase_date.desc().nulls_last())
-            .all()
-        )
-        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
-    elif active_sort == "date_asc":
-        rows = (
-            base_query
-            .group_by(Bundle.id)
-            .order_by(Bundle.purchase_date.asc().nulls_last())
-            .all()
-        )
-        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
-    else:  # count_desc (default for category views)
-        rows = (
-            base_query
-            .group_by(Bundle.id)
-            .order_by(func.count(Item.id).desc())
-            .all()
-        )
-        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
-
+    bundles, active_sort = get_all_bundles(db, q=q, sort=sort)
     return templates.TemplateResponse(
         request,
         "partials/bundle_list.html",

@@ -1,11 +1,28 @@
 """Reusable query helpers for the Humble Library Sync catalog."""
 
+import re
+
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from humble_sync.db.models import Bundle, Item
 
 _VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc", "date_desc", "date_asc"}
+
+# Regex to strip common Humble Bundle title prefixes for smart A-Z sorting.
+# Matches (case-insensitive):
+#   - "Humble <sub-bundle> Bundle: " (e.g. "Humble Book Bundle: ")
+#   - "Humble " (e.g. "Humble Foo")
+#   - "The " (e.g. "The Foo")
+_PREFIX_RE = re.compile(
+    r"^(?:humble\s+(?:[a-z0-9-]+\s+)?bundle:\s*|humble\s+|the\s+)",
+    re.IGNORECASE,
+)
+
+
+def get_sort_key(title: str) -> str:
+    """Return a lowercase, prefix-stripped title suitable for smart A-Z sorting."""
+    return _PREFIX_RE.sub("", title).strip().lower()
 
 
 def _normalize_category_sort(sort: str) -> str:
@@ -144,3 +161,82 @@ def get_all_publishers(db: Session, q: str = "", sort: str = "title_asc") -> tup
 
     publishers = [{"name": name, "count": count} for name, count in rows]
     return publishers, active_sort
+
+
+def get_all_bundles(db: Session, q: str = "", sort: str = "title_asc") -> tuple[list[dict], str]:
+    """Return all bundles with item counts, filtered and sorted.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    q:
+        Optional case-insensitive substring filter on bundle title.
+    sort:
+        Sort key. One of ``title_asc``, ``title_desc``, ``count_asc``,
+        ``count_desc``, ``date_asc``, ``date_desc``. Falls back to
+        ``title_asc`` for invalid values.
+
+    Returns
+    -------
+    tuple[list[dict], str]
+        A ``(bundles, active_sort)`` pair where each bundle dict contains
+        ``"id"``, ``"name"``, ``"purchase_date"``, and ``"count"`` keys.
+    """
+    active_sort = _normalize_category_sort(sort)
+    base_query = (
+        db.query(Bundle.id, Bundle.title, Bundle.purchase_date, func.count(Item.id).label("count"))
+        .join(Item, Item.bundle_id == Bundle.id)
+    )
+    if q:
+        base_query = base_query.filter(Bundle.title.ilike(f"%{q}%"))
+
+    if active_sort in ("title_asc", "title_desc"):
+        # For title sorts, fetch all rows then sort in Python using the
+        # prefix-stripping helper so "Humble Book Bundle: Foo" sorts as "foo".
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .all()
+        )
+        bundles_raw = [
+            {"id": id, "name": name, "purchase_date": purchase_date, "count": count}
+            for id, name, purchase_date, count in rows
+        ]
+        reverse = active_sort == "title_desc"
+        bundles_raw.sort(key=lambda b: get_sort_key(b["name"]), reverse=reverse)
+        bundles = bundles_raw
+    elif active_sort == "count_asc":
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .order_by(func.count(Item.id).asc())
+            .all()
+        )
+        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
+    elif active_sort == "date_desc":
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .order_by(Bundle.purchase_date.desc().nulls_last())
+            .all()
+        )
+        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
+    elif active_sort == "date_asc":
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .order_by(Bundle.purchase_date.asc().nulls_last())
+            .all()
+        )
+        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
+    else:  # count_desc (default for category views)
+        rows = (
+            base_query
+            .group_by(Bundle.id)
+            .order_by(func.count(Item.id).desc())
+            .all()
+        )
+        bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
+
+    return bundles, active_sort
