@@ -12,6 +12,29 @@ from urllib.parse import parse_qs, urlparse
 
 from humble_sync.db.database import SessionLocal, init_db
 from humble_sync.db.models import Bundle, Item
+from sqlalchemy.orm import Session
+
+
+def _upsert_bundle(db: Session, bundle_title: str, item_sample: dict) -> Bundle:
+    """Look up an existing bundle by title or create a new one, then return it.
+
+    If the bundle already exists its ``purchase_date`` and ``captured_at`` are
+    refreshed from *item_sample*.  A brand-new bundle is flushed immediately
+    so that ``bundle.id`` is available for item association.
+    """
+    bundle = db.query(Bundle).filter_by(title=bundle_title).first()
+    if bundle:
+        bundle.purchase_date = item_sample.get("purchase_date")
+        bundle.captured_at = item_sample.get("captured_at")
+    else:
+        bundle = Bundle(
+            title=bundle_title,
+            purchase_date=item_sample.get("purchase_date"),
+            captured_at=item_sample.get("captured_at"),
+        )
+        db.add(bundle)
+        db.flush()  # Get the bundle.id for item association
+    return bundle
 
 
 def extract_expiration_from_url(url_string: str) -> Optional[str]:
@@ -226,21 +249,7 @@ def sync_catalog_to_db(catalog_data: dict[str, Any], db_session=None) -> None:
             bundles_by_title.setdefault(bundle_title, []).append(item)
 
         for bundle_title, items in bundles_by_title.items():
-            # Upsert bundle: check if bundle with this title already exists
-            bundle = db.query(Bundle).filter_by(title=bundle_title).first()
-            if bundle:
-                # Update existing bundle metadata
-                bundle.purchase_date = items[0].get("purchase_date")
-                bundle.captured_at = items[0].get("captured_at")
-            else:
-                # Create new bundle
-                bundle = Bundle(
-                    title=bundle_title,
-                    purchase_date=items[0].get("purchase_date"),
-                    captured_at=items[0].get("captured_at"),
-                )
-                db.add(bundle)
-                db.flush()  # Get the bundle.id for item association
+            bundle = _upsert_bundle(db, bundle_title, items[0])
 
             for item_data in items:
                 # Upsert item: check if item with this title already exists in this bundle
