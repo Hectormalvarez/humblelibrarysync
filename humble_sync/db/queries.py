@@ -5,7 +5,7 @@ import re
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
-from humble_sync.db.models import Bundle, Item
+from humble_sync.db.models import Bundle, EvaluatedBundle, Item
 
 _VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc", "date_desc", "date_asc"}
 _VALID_SEARCH_SORTS = {"title_asc", "title_desc", "publisher_asc"}
@@ -252,6 +252,25 @@ def get_all_bundles(db: Session, q: str = "", sort: str = "title_asc") -> tuple[
         bundles = [{"id": id, "name": name, "purchase_date": purchase_date, "count": count} for id, name, purchase_date, count in rows]
 
     return bundles, active_sort
+
+
+def get_evaluated_bundle_by_url(db: Session, url: str) -> EvaluatedBundle | None:
+    """Return an EvaluatedBundle matching the given URL, or ``None`` if not found.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    url:
+        The bundle URL to look up.
+
+    Returns
+    -------
+    EvaluatedBundle | None
+        The matching ``EvaluatedBundle`` ORM object, or ``None`` if no row
+        matches the given URL.
+    """
+    return db.query(EvaluatedBundle).filter(EvaluatedBundle.url == url).first()
 
 
 def get_item_by_id(db: Session, item_id: int) -> Item | None:

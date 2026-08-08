@@ -16,7 +16,8 @@ from humble_sync.services.evaluator import (
     log_evaluated_bundle,
     mark_expired_entries,
 )
-from humble_sync.db.models import EvaluatedBundle, Item
+from humble_sync.db.models import Item
+from humble_sync.db.queries import get_evaluated_bundle_by_url
 
 router = APIRouter()
 
@@ -116,44 +117,37 @@ def deals_expired(request: Request):
 def deals_inspect_expired(
     request: Request,
     url: str = Query(...),
+    db: Session = Depends(get_db),
 ):
     """
     HTMX partial – fetches a saved EvaluatedBundle record by URL and
     renders the deal inspector drawer using the stored evaluation data.
     """
-    from humble_sync.db.database import SessionLocal
+    record = get_evaluated_bundle_by_url(db, url)
 
-    db = SessionLocal()
-    try:
-        record = db.query(EvaluatedBundle).filter(
-            EvaluatedBundle.url == url
-        ).first()
-
-        if not record:
-            return templates.TemplateResponse(
-                request,
-                "partials/deal_inspector.html",
-                {"error": "Expired bundle not found.", "url": url},
-            )
-
-        eval_data = record.evaluation or {}
-
+    if not record:
         return templates.TemplateResponse(
             request,
             "partials/deal_inspector.html",
-            {
-                "url": url,
-                "bundle_name": record.bundle_name,
-                "total_items": eval_data.get("total_items", 0),
-                "matched_count": eval_data.get("matched_count", 0),
-                "overlap_percentage": eval_data.get("overlap_percentage", 0.0),
-                "new_items_count": len(eval_data.get("new_items", [])),
-                "pricing": eval_data.get("pricing", []),
-                "tier_breakdown": eval_data.get("tier_breakdown", []),
-            },
+            {"error": "Expired bundle not found.", "url": url},
         )
-    finally:
-        db.close()
+
+    eval_data = record.evaluation or {}
+
+    return templates.TemplateResponse(
+        request,
+        "partials/deal_inspector.html",
+        {
+            "url": url,
+            "bundle_name": record.bundle_name,
+            "total_items": eval_data.get("total_items", 0),
+            "matched_count": eval_data.get("matched_count", 0),
+            "overlap_percentage": eval_data.get("overlap_percentage", 0.0),
+            "new_items_count": len(eval_data.get("new_items", [])),
+            "pricing": eval_data.get("pricing", []),
+            "tier_breakdown": eval_data.get("tier_breakdown", []),
+        },
+    )
 
 
 @router.get("/deals/reset")
