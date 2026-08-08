@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from humble_sync.db.models import Bundle, Item
-from humble_sync.db.queries import get_library_metrics
+from humble_sync.db.queries import get_library_metrics, get_top_publishers_and_bundles
 
 router = APIRouter()
 
@@ -103,27 +103,9 @@ def library_search(
     # Initial page load state (empty search, first page): aggregate top
     # publishers and bundles so the home page can show category stats.
     if q == "" and publisher is None and bundle_id is None and offset == 0:
-        publisher_rows = (
-            db.query(Item.publisher, func.count(Item.id).label("count"))
-            .group_by(Item.publisher)
-            .order_by(func.count(Item.id).desc())
-            .limit(5)
-            .all()
-        )
-        bundle_rows = (
-            db.query(Bundle.title, func.count(Item.id).label("count"))
-            .join(Item, Item.bundle_id == Bundle.id)
-            .group_by(Bundle.id)
-            .order_by(func.count(Item.id).desc())
-            .limit(5)
-            .all()
-        )
-        publishers_summary = [
-            {"name": name, "count": count} for name, count in publisher_rows
-        ]
-        bundles_summary = [
-            {"name": name, "count": count} for name, count in bundle_rows
-        ]
+        summaries = get_top_publishers_and_bundles(db)
+        publishers_summary = summaries["publishers_summary"]
+        bundles_summary = summaries["bundles_summary"]
     else:
         publishers_summary = []
         bundles_summary = []

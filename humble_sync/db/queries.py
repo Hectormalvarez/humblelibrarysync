@@ -42,3 +42,39 @@ def get_library_metrics(db: Session) -> dict:
         "total_bundles": total_bundles,
         "format_breakdown": format_breakdown,
     }
+
+
+def get_top_publishers_and_bundles(db: Session) -> dict:
+    """Return the top 5 publishers and bundles by item count.
+
+    Used by the library search endpoint to populate the category summary
+    cards on the initial page load (empty search, first page).
+
+    The returned dictionary contains:
+    - ``publishers_summary``: list of dicts with ``name`` and ``count``.
+    - ``bundles_summary``: list of dicts with ``name`` and ``count``.
+    """
+    publisher_rows = (
+        db.query(Item.publisher, func.count(Item.id).label("count"))
+        .group_by(Item.publisher)
+        .order_by(func.count(Item.id).desc())
+        .limit(5)
+        .all()
+    )
+    bundle_rows = (
+        db.query(Bundle.title, func.count(Item.id).label("count"))
+        .join(Item, Item.bundle_id == Bundle.id)
+        .group_by(Bundle.id)
+        .order_by(func.count(Item.id).desc())
+        .limit(5)
+        .all()
+    )
+
+    return {
+        "publishers_summary": [
+            {"name": name, "count": count} for name, count in publisher_rows
+        ],
+        "bundles_summary": [
+            {"name": name, "count": count} for name, count in bundle_rows
+        ],
+    }
