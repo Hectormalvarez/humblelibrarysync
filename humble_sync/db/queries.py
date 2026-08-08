@@ -82,6 +82,23 @@ def get_library_metrics(db: Session) -> dict:
     }
 
 
+def get_library_item_titles(db: Session) -> list[dict[str, str]]:
+    """Return a list of all library item titles.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+
+    Returns
+    -------
+    list[dict[str, str]]
+        A list of dicts, each containing a single ``"title"`` key.
+    """
+    rows = db.query(Item.title).all()
+    return [{"title": title} for (title,) in rows]
+
+
 def get_top_publishers_and_bundles(db: Session) -> dict:
     """Return the top 5 publishers and bundles by item count.
 

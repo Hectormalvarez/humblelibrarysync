@@ -16,8 +16,7 @@ from humble_sync.services.evaluator import (
     log_evaluated_bundle,
     mark_expired_entries,
 )
-from humble_sync.db.models import Item
-from humble_sync.db.queries import get_evaluated_bundle_by_url
+from humble_sync.db.queries import get_evaluated_bundle_by_url, get_library_item_titles
 
 router = APIRouter()
 
@@ -189,8 +188,7 @@ def deals_inspect(
     tier_item_map = bundle_data.get("tier_item_map", {})
 
     # 2. Fetch library items from DB
-    library_rows = db.query(Item).all()
-    library_items = [{"title": row.title} for row in library_rows]
+    library_items = get_library_item_titles(db)
 
     # 3. Evaluate overlap
     eval_data = evaluate_deal(bundle_items, library_items, pricing, tier_item_map)
