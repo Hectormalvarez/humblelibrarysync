@@ -254,6 +254,30 @@ def get_all_bundles(db: Session, q: str = "", sort: str = "title_asc") -> tuple[
     return bundles, active_sort
 
 
+def get_item_by_id(db: Session, item_id: int) -> Item | None:
+    """Return a single item joined with its bundle, or ``None`` if not found.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    item_id:
+        Primary key of the item to fetch.
+
+    Returns
+    -------
+    Item | None
+        The ``Item`` ORM object with its parent ``Bundle`` eagerly loaded,
+        or ``None`` if no row matches the given id.
+    """
+    return (
+        db.query(Item)
+        .join(Bundle, Item.bundle_id == Bundle.id)
+        .filter(Item.id == item_id)
+        .first()
+    )
+
+
 def search_library_items(
     db: Session,
     q: str = "",

@@ -7,10 +7,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from humble_sync.db.models import Bundle, Item
 from humble_sync.db.queries import (
     get_all_bundles,
     get_all_publishers,
+    get_item_by_id,
     get_library_metrics,
     get_sort_key,
     get_top_publishers_and_bundles,
@@ -155,14 +155,7 @@ def library_item_detail(
     Returns HTTP 404 when the requested item does not exist.  The rendered
     partial is swapped into the ``#inspector-drawer`` container.
     """
-    # Join Bundle so the template can access `item.bundle.title` without a
-    # lazy-load round trip.  `first()` returns None if no row matches.
-    item = (
-        db.query(Item)
-        .join(Bundle, Item.bundle_id == Bundle.id)
-        .filter(Item.id == item_id)
-        .first()
-    )
+    item = get_item_by_id(db, item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
 
