@@ -53,13 +53,15 @@ def extract_downloads(subproduct: dict) -> dict[str, dict]:
     return downloads_map
 
 
-def extract_items_from_bundle(bundle: dict, captured_at: str) -> list[dict]:
-    """Extracts books, software downloads, and redemption keys from a bundle payload."""
-    items = []
-    bundle_title = bundle.get("product", {}).get("human_name", "")
-    purchase_date = bundle.get("created", "")
+def _extract_download_items(
+    bundle: dict, bundle_title: str, purchase_date: str, captured_at: str
+) -> list[dict]:
+    """Extracts standard download items (books, software) from bundle subproducts.
 
-    # 1. Standard Downloads (Books, Audiobooks, Software)
+    Iterates subproducts, skips discount/coupon entries, and builds normalized
+    item dictionaries with download metadata.
+    """
+    items = []
     for sub in bundle.get("subproducts", []):
         title = sub.get("human_name", "").strip()
         if not title or "Discount" in title or "Coupon" in title:
@@ -78,8 +80,17 @@ def extract_items_from_bundle(bundle: dict, captured_at: str) -> list[dict]:
             "downloads": downloads_map,
             "type": "download",
         })
+    return items
 
-    # 2. Third-Party Keys
+
+def extract_items_from_bundle(bundle: dict, captured_at: str) -> list[dict]:
+    """Extracts books, software downloads, and redemption keys from a bundle payload."""
+    bundle_title = bundle.get("product", {}).get("human_name", "")
+    purchase_date = bundle.get("created", "")
+
+    items = _extract_download_items(bundle, bundle_title, purchase_date, captured_at)
+
+    # Third-Party Keys
     tpk_dict = bundle.get("tpkd_dict", {})
     for tpk in tpk_dict.get("all_tpks", []):
         title = tpk.get("human_name", "").strip()
