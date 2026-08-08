@@ -11,6 +11,7 @@ from humble_sync.services.evaluator import (
     evaluate_deal,
     fetch_bundle_items,
     get_expired_entries,
+    group_bundles_by_category,
     load_active_bundles,
     load_evaluated_bundles_log,
     log_evaluated_bundle,
@@ -21,23 +22,6 @@ from humble_sync.db.queries import get_evaluated_bundle_by_url, get_library_item
 router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
-
-_CATEGORY_GROUPS = {
-    "books": "📚 Books",
-    "games": "🎮 Games",
-    "software": "💻 Software",
-}
-
-
-def _categorise_bundle_url(url: str) -> str:
-    """Return the category key (books/games/software) from a bundle URL."""
-    if "/books/" in url:
-        return "books"
-    if "/games/" in url:
-        return "games"
-    if "/software/" in url:
-        return "software"
-    return "books"
 
 
 @router.get("/deals")
@@ -61,16 +45,7 @@ def deals_live(request: Request):
             {"error": str(e)},
         )
 
-    # Group bundles by category
-    grouped: dict[str, list[dict]] = {"books": [], "games": [], "software": []}
-    for b in bundles:
-        cat = _categorise_bundle_url(b.get("url", ""))
-        grouped.setdefault(cat, []).append(b)
-
-    categories = [
-        {"key": k, "label": _CATEGORY_GROUPS.get(k, k), "bundles": grouped.get(k, [])}
-        for k in ("books", "games", "software")
-    ]
+    categories = group_bundles_by_category(bundles)
 
     return templates.TemplateResponse(
         request,

@@ -698,6 +698,48 @@ def get_expired_entries(
     return [e for e in entries if e.get("expired_at") is not None]
 
 
+# ── Bundle category grouping ────────────────────────────────────────────
+
+_CATEGORY_GROUPS = {
+    "books": "📚 Books",
+    "games": "🎮 Games",
+    "software": "💻 Software",
+}
+
+
+def _categorise_bundle_url(url: str) -> str:
+    """Return the category key (books/games/software) from a bundle URL."""
+    if "/books/" in url:
+        return "books"
+    if "/games/" in url:
+        return "games"
+    if "/software/" in url:
+        return "software"
+    return "books"
+
+
+def group_bundles_by_category(bundles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Group bundles into books, games, and software categories.
+
+    Args:
+        bundles: List of bundle dicts (each expected to have a 'url' key).
+
+    Returns:
+        List of category dicts structured as:
+        [{"key": k, "label": label, "bundles": [...]}, ...]
+    """
+    grouped: dict[str, list[dict]] = {"books": [], "games": [], "software": []}
+    for b in bundles:
+        cat = _categorise_bundle_url(b.get("url", ""))
+        grouped.setdefault(cat, []).append(b)
+
+    return [
+        {"key": k, "label": _CATEGORY_GROUPS.get(k, k), "bundles": grouped.get(k, [])}
+        for k in ("books", "games", "software")
+    ]
+
+
 def get_unexpired_entries(
     entries: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
