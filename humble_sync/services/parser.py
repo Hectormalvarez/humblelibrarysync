@@ -37,6 +37,39 @@ def _upsert_bundle(db: Session, bundle_title: str, item_sample: dict) -> Bundle:
     return bundle
 
 
+def _upsert_item(db: Session, bundle: Bundle, item_data: dict) -> Item:
+    """Look up an existing item by (bundle_id, title) or create a new one.
+
+    If the item already exists its ``publisher``, ``item_type``,
+    ``available_formats`` and ``downloads`` fields are refreshed from
+    *item_data*.  A brand-new ``Item`` is associated with *bundle* via the
+    relationship.
+
+    Returns the attached ``Item`` ORM instance.
+    """
+    existing_item = db.query(Item).filter_by(
+        bundle_id=bundle.id,
+        title=item_data["title"],
+    ).first()
+
+    if existing_item:
+        existing_item.publisher = item_data.get("publisher", "Unknown")
+        existing_item.item_type = item_data.get("type", "download")
+        existing_item.available_formats = item_data.get("available_formats", [])
+        existing_item.downloads = item_data.get("downloads", {})
+        return existing_item
+
+    new_item = Item(
+        title=item_data["title"],
+        publisher=item_data.get("publisher", "Unknown"),
+        item_type=item_data.get("type", "download"),
+        available_formats=item_data.get("available_formats", []),
+        downloads=item_data.get("downloads", {}),
+    )
+    bundle.items.append(new_item)
+    return new_item
+
+
 def extract_expiration_from_url(url_string: str) -> Optional[str]:
     """Extracts the 'exp=' UNIX expiration timestamp from Humble's signed URL string."""
     if not url_string:
@@ -252,28 +285,7 @@ def sync_catalog_to_db(catalog_data: dict[str, Any], db_session=None) -> None:
             bundle = _upsert_bundle(db, bundle_title, items[0])
 
             for item_data in items:
-                # Upsert item: check if item with this title already exists in this bundle
-                existing_item = db.query(Item).filter_by(
-                    bundle_id=bundle.id,
-                    title=item_data["title"]
-                ).first()
-
-                if existing_item:
-                    # Update existing item
-                    existing_item.publisher = item_data.get("publisher", "Unknown")
-                    existing_item.item_type = item_data.get("type", "download")
-                    existing_item.available_formats = item_data.get("available_formats", [])
-                    existing_item.downloads = item_data.get("downloads", {})
-                else:
-                    # Create new item
-                    new_item = Item(
-                        title=item_data["title"],
-                        publisher=item_data.get("publisher", "Unknown"),
-                        item_type=item_data.get("type", "download"),
-                        available_formats=item_data.get("available_formats", []),
-                        downloads=item_data.get("downloads", {}),
-                    )
-                    bundle.items.append(new_item)
+                _upsert_item(db, bundle, item_data)
 
         db.commit()
     except Exception:
