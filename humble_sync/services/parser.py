@@ -83,14 +83,15 @@ def _extract_download_items(
     return items
 
 
-def extract_items_from_bundle(bundle: dict, captured_at: str) -> list[dict]:
-    """Extracts books, software downloads, and redemption keys from a bundle payload."""
-    bundle_title = bundle.get("product", {}).get("human_name", "")
-    purchase_date = bundle.get("created", "")
+def _extract_redemption_keys(
+    bundle: dict, bundle_title: str, purchase_date: str, captured_at: str
+) -> list[dict]:
+    """Extracts third-party redemption keys from the bundle's tpkd_dict.
 
-    items = _extract_download_items(bundle, bundle_title, purchase_date, captured_at)
-
-    # Third-Party Keys
+    Iterates ``all_tpks`` entries and builds normalized item dictionaries
+    with ``type='redemption_key'`` and ``available_formats=['KEY']``.
+    """
+    items = []
     tpk_dict = bundle.get("tpkd_dict", {})
     for tpk in tpk_dict.get("all_tpks", []):
         title = tpk.get("human_name", "").strip()
@@ -105,6 +106,16 @@ def extract_items_from_bundle(bundle: dict, captured_at: str) -> list[dict]:
                 "downloads": {},
                 "type": "redemption_key",
             })
+    return items
+
+
+def extract_items_from_bundle(bundle: dict, captured_at: str) -> list[dict]:
+    """Extracts books, software downloads, and redemption keys from a bundle payload."""
+    bundle_title = bundle.get("product", {}).get("human_name", "")
+    purchase_date = bundle.get("created", "")
+
+    items = _extract_download_items(bundle, bundle_title, purchase_date, captured_at)
+    items.extend(_extract_redemption_keys(bundle, bundle_title, purchase_date, captured_at))
 
     return items
 
