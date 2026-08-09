@@ -4,6 +4,7 @@ Uvicorn will look for the `app` object in this module when booting the server.
 """
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from humble_sync.auth import auth_backend, fastapi_users, UserRead, UserCreate
@@ -48,6 +49,23 @@ app.include_router(
     prefix="/auth",
     tags=["auth"],
 )
+
+
+@app.exception_handler(Exception)
+async def unauthorized_exception_handler(request: Request, exc: Exception):
+    """Redirect browser requests to /login on 401; return JSON otherwise.
+
+    We intercept Starlette HTTPException with status 401 raised by
+    fastapi-users when no valid credentials are provided.
+    """
+    from starlette.exceptions import HTTPException
+
+    if isinstance(exc, HTTPException) and exc.status_code == 401:
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept:
+            return RedirectResponse(url="/login", status_code=303)
+        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    raise exc
 
 
 @app.get("/health")
