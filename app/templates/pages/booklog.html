@@ -6,6 +6,11 @@
     <div class="control-bar">
       <h1 class="view-title">Book Log</h1>
       <p class="view-subtitle">Track your wishlist, reading, and finished books.</p>
+      <div style="margin-top:var(--space-2);">
+        <form method="post" action="/export/manifest/download" style="display:inline;">
+          <button type="submit" class="download-btn" style="font-size:var(--text-xs);">📥 Export Manifest</button>
+        </form>
+      </div>
     </div>
     <div id="master-stream" class="stream-container" hx-get="/booklog/stream" hx-trigger="load"></div>
   </div>
