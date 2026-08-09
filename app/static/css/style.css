@@ -415,6 +415,41 @@ nav {
   font-weight: 600;
 }
 
+/* Spacing utility – push remaining nav items to the right */
+nav > * {
+  margin-left: auto;
+}
+
+nav > *:first-child {
+  margin-left: 0;
+}
+
+nav > *:first-child + * {
+  margin-left: 0;
+}
+
+.nav-user-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-badge-bg);
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  align-self: center;
+}
+
+.nav-link.nav-logout {
+  color: var(--color-text-muted);
+}
+
+.nav-link.nav-logout:hover {
+  color: var(--color-error-text);
+  background: var(--color-error-bg);
+}
+
 /* ----- Page Header Hierarchy ----- */
 .view-title {
   font-size: var(--text-lg);
