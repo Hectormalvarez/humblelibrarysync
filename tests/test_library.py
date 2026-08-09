@@ -42,8 +42,8 @@ def test_library_search_pagination(client):
         # First page: limit=5, offset=0 → should return 5 items, has_more=True
         resp = client.get("/library/search?q=Paginated&limit=5&offset=0")
         assert resp.status_code == 200
-        # Count <article class="result-row" elements specifically
-        assert resp.text.count('<article class="result-row"') == 5
+        # Count <article class="result-row actionable-row" elements specifically
+        assert resp.text.count('<article class="result-row actionable-row"') == 5
         assert "Paginated Item 0" in resp.text
         assert "Paginated Item 4" in resp.text
         assert "Paginated Item 5" not in resp.text
@@ -51,7 +51,7 @@ def test_library_search_pagination(client):
         # Second page: limit=5, offset=5 → should return 3 items, has_more=False
         resp = client.get("/library/search?q=Paginated&limit=5&offset=5")
         assert resp.status_code == 200
-        assert resp.text.count('<article class="result-row"') == 3
+        assert resp.text.count('<article class="result-row actionable-row"') == 3
         assert "Paginated Item 5" in resp.text
         assert "Paginated Item 7" in resp.text
     finally:
@@ -536,7 +536,7 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
         # but only with the exact publisher match
         resp = client.get("/library/search?publisher=Publisher Alpha")
         assert resp.status_code == 200
-        assert resp.text.count('<article class="result-row"') == 2
+        assert resp.text.count('<article class="result-row actionable-row"') == 2
         assert "Filter Test Item 1" in resp.text
         assert "Filter Test Item 3" in resp.text
         assert "Filter Test Item 2" not in resp.text
@@ -544,7 +544,7 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
         # Filter by bundle_id only - should return items only from that bundle
         resp = client.get(f"/library/search?bundle_id={bundle_a.id}")
         assert resp.status_code == 200
-        assert resp.text.count('<article class="result-row"') == 2
+        assert resp.text.count('<article class="result-row actionable-row"') == 2
         assert "Filter Test Item 1" in resp.text
         assert "Filter Test Item 2" in resp.text
         assert "Filter Test Item 3" not in resp.text
@@ -555,18 +555,18 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
             f"/library/search?publisher=Publisher Alpha&bundle_id={bundle_a.id}"
         )
         assert resp.status_code == 200
-        assert resp.text.count('<article class="result-row"') == 1
+        assert resp.text.count('<article class="result-row actionable-row"') == 1
         assert "Filter Test Item 1" in resp.text
 
         # Filter by publisher with no matches
         resp = client.get("/library/search?publisher=Nonexistent Publisher")
         assert resp.status_code == 200
-        assert resp.text.count('<article class="result-row"') == 0
+        assert resp.text.count('<article class="result-row actionable-row"') == 0
 
         # Combine q search with publisher filter
         resp = client.get("/library/search?q=Item 1&publisher=Publisher Alpha")
         assert resp.status_code == 200
-        assert resp.text.count('<article class="result-row"') == 1
+        assert resp.text.count('<article class="result-row actionable-row"') == 1
         assert "Filter Test Item 1" in resp.text
     finally:
         db.close()
@@ -726,7 +726,7 @@ def test_search_pagination_preserves_publisher_filter(client):
         # bundle_id should NOT be present when no bundle filter is active
         assert "bundle_id" not in resp.text
         # Verify has_more triggered the scroll trigger article
-        assert resp.text.count('<article class="result-row"') == 3
+        assert resp.text.count('<article class="result-row actionable-row"') == 3
 
         # Request second page – should still have publisher filter in scroll trigger
         resp2 = client.get(
@@ -787,7 +787,7 @@ def test_search_pagination_returns_appended_items(client):
         assert "Append Test Item 4" in resp.text
         assert "Append Test Item 5" in resp.text
         # Should have exactly 3 result-row articles (items + sentinel counts as one)
-        assert resp.text.count('<article class="result-row"') == 3
+        assert resp.text.count('<article class="result-row actionable-row"') == 3
         # The sentinel should be a .scroll-sentinel div with hx-trigger
         # targeting the actual scroll container (#master-stream)
         assert 'class="scroll-sentinel"' in resp.text
@@ -1154,7 +1154,7 @@ def test_library_search_publisher_filter_and_sort_desc(client):
         )
         assert resp.status_code == 200
         # All three items should be present
-        assert resp.text.count('<article class="result-row"') == 3
+        assert resp.text.count('<article class="result-row actionable-row"') == 3
         # Verify descending order: Zeta before Middle before Alpha
         zeta_pos = resp.text.index("Zeta Book")
         middle_pos = resp.text.index("Middle Book")
@@ -1208,7 +1208,7 @@ def test_scroll_sentinel_includes_sort_parameter(client):
         assert "sort=title_desc" in resp.text
         # Verify has_more triggered the scroll sentinel
         assert 'class="scroll-sentinel"' in resp.text
-        assert resp.text.count('<article class="result-row"') == 3
+        assert resp.text.count('<article class="result-row actionable-row"') == 3
     finally:
         db.close()
         cleanup = SessionLocal()
