@@ -6,7 +6,7 @@ import uuid
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
-from humble_sync.db.models import Bundle, EvaluatedBundle, Item
+from humble_sync.db.models import Bundle, EvaluatedBundle, Item, UserBookLog
 
 _VALID_CATEGORY_SORTS = {"title_asc", "title_desc", "count_desc", "count_asc", "date_desc", "date_asc"}
 _VALID_SEARCH_SORTS = {"title_asc", "title_desc", "publisher_asc"}
@@ -486,3 +486,130 @@ def search_library_items(
         "active_bundle": active_bundle,
         "active_sort": active_sort,
     }
+
+
+# ── Book Log CRUD Helpers ─────────────────────────────────────────────────
+
+
+def add_or_update_booklog_entry(
+    db: Session,
+    user_id: uuid.UUID,
+    title: str,
+    norm_title: str,
+    status: str = "wishlist",
+    item_id: str | None = None,
+    volume_info: str | None = None,
+    author_or_publisher: str | None = None,
+    notes: str | None = None,
+    target_price: float | None = None,
+    cover_url: str | None = None,
+) -> UserBookLog:
+    """Insert or update a booklog entry for *user_id*.
+
+    If an entry with the same ``norm_title`` and ``status`` already exists
+    for this user, the remaining fields are updated.  Otherwise a new row
+    is created.
+
+    Returns
+    -------
+    UserBookLog
+        The persisted ORM object.
+    """
+    from datetime import datetime, timezone
+
+    existing = (
+        db.query(UserBookLog)
+        .filter(
+            UserBookLog.user_id == user_id,
+            UserBookLog.norm_title == norm_title,
+            UserBookLog.status == status,
+        )
+        .first()
+    )
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    if existing is not None:
+        existing.title = title
+        existing.item_id = item_id or existing.item_id
+        existing.volume_info = volume_info or existing.volume_info
+        existing.author_or_publisher = author_or_publisher or existing.author_or_publisher
+        existing.notes = notes if notes is not None else existing.notes
+        existing.target_price = target_price if target_price is not None else existing.target_price
+        existing.cover_url = cover_url or existing.cover_url
+        existing.updated_at = now
+        db.flush()
+        return existing
+
+    entry = UserBookLog(
+        user_id=user_id,
+        item_id=item_id,
+        title=title,
+        norm_title=norm_title,
+        volume_info=volume_info,
+        author_or_publisher=author_or_publisher,
+        status=status,
+        notes=notes,
+        target_price=target_price,
+        cover_url=cover_url,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(entry)
+    db.flush()
+    return entry
+
+
+def get_user_booklog(
+    db: Session,
+    user_id: uuid.UUID,
+    status: str | None = None,
+) -> list[UserBookLog]:
+    """Return all booklog entries for *user_id*, optionally filtered by *status*.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    user_id:
+        Owner UUID – strictly enforced.
+    status:
+        Optional status filter (e.g. ``"wishlist"``, ``"reading"``, ``"finished"``).
+    """
+    query = db.query(UserBookLog).filter(UserBookLog.user_id == user_id)
+    if status is not None:
+        query = query.filter(UserBookLog.status == status)
+    return query.order_by(UserBookLog.created_at.desc()).all()
+
+
+def get_booklog_entry_by_id(
+    db: Session,
+    entry_id: int,
+    user_id: uuid.UUID,
+) -> UserBookLog | None:
+    """Return a single booklog entry if it belongs to *user_id*, else ``None``."""
+    return (
+        db.query(UserBookLog)
+        .filter(UserBookLog.id == entry_id, UserBookLog.user_id == user_id)
+        .first()
+    )
+
+
+def delete_booklog_entry(
+    db: Session,
+    entry_id: int,
+    user_id: uuid.UUID,
+) -> bool:
+    """Delete a booklog entry owned by *user_id*.
+
+    Returns
+    -------
+    bool
+        ``True`` if a row was deleted, ``False`` if the entry was not found.
+    """
+    entry = get_booklog_entry_by_id(db, entry_id, user_id)
+    if entry is None:
+        return False
+    db.delete(entry)
+    db.flush()
+    return True
