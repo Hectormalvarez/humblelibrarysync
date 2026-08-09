@@ -19,7 +19,7 @@ from humble_sync.services.deal_logger import (  # noqa: F401 – re-exported
     log_evaluated_bundle,
     mark_expired_entries,
 )
-from humble_sync.services.duplicates import normalize_title
+from humble_sync.utils.text import normalize_title
 from humble_sync.services.scraper import (
     _USER_AGENT,
     fetch_bundle_items,

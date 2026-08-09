@@ -4,20 +4,13 @@ Identifies titles that appear across multiple bundle purchases.
 """
 
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from humble_sync.db.database import SessionLocal
 from humble_sync.db.models import Bundle, Item
-
-
-def normalize_title(title: str) -> str:
-    """Lowercases, strips punctuation, and collapses whitespace for fuzzy matching."""
-    title = title.lower()
-    title = re.sub(r"[^\w\s]", "", title)
-    return re.sub(r"\s+", " ", title).strip()
+from humble_sync.utils.text import normalize_title  # noqa: F401 – re-exported
 
 
 def find_duplicates(items: list[dict[str, Any]]) -> dict[str, list[dict[str, str]]]:
