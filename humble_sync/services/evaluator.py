@@ -10,15 +10,6 @@ from humble_sync.services.bundle_cache import (
     capture_active_bundles,
     load_active_bundles,
 )
-from humble_sync.services.deal_logger import (  # noqa: F401 – re-exported
-    format_expired_deals_report,
-    format_expired_reading_list,
-    get_expired_entries,
-    get_unexpired_entries,
-    load_evaluated_bundles_log,
-    log_evaluated_bundle,
-    mark_expired_entries,
-)
 from humble_sync.utils.text import normalize_title
 from humble_sync.services.scraper import (
     _USER_AGENT,

@@ -15,9 +15,7 @@ os.environ["DATABASE_URL"] = "sqlite:///./test_humble_library.db"
 from humble_sync.db.database import Base, SessionLocal, engine
 from humble_sync.db.models import EvaluatedBundle
 from humble_sync.services.bundle_cache import parse_bundles_dump
-from humble_sync.services.evaluator import (
-    evaluate_deal,
-    format_deal_report,
+from humble_sync.services.deal_logger import (
     format_expired_deals_report,
     format_expired_reading_list,
     get_expired_entries,
@@ -25,6 +23,10 @@ from humble_sync.services.evaluator import (
     load_evaluated_bundles_log,
     log_evaluated_bundle,
     mark_expired_entries,
+)
+from humble_sync.services.evaluator import (
+    evaluate_deal,
+    format_deal_report,
 )
 from humble_sync.services.scraper import _parse_bundles_from_data
 from humble_sync.services.scraper import _build_tier_item_map

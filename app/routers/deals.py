@@ -7,16 +7,18 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from humble_sync.services.evaluator import (
-    evaluate_deal,
-    fetch_bundle_items,
+from humble_sync.services.deal_logger import (
     get_expired_entries,
-    group_bundles_by_category,
-    load_active_bundles,
     load_evaluated_bundles_log,
     log_evaluated_bundle,
     mark_expired_entries,
 )
+from humble_sync.services.evaluator import (
+    evaluate_deal,
+    fetch_bundle_items,
+    group_bundles_by_category,
+)
+from humble_sync.services.bundle_cache import load_active_bundles
 from humble_sync.db.queries import get_evaluated_bundle_by_url, get_library_item_titles
 
 router = APIRouter()
