@@ -9,6 +9,7 @@ import os
 from typing import Generator
 
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./humble_library.db")
@@ -19,6 +20,12 @@ if DATABASE_URL.startswith("sqlite"):
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+ASYNC_DATABASE_URL = os.environ.get("ASYNC_DATABASE_URL", "sqlite+aiosqlite:///./humble_library.db")
+async_engine = create_async_engine(ASYNC_DATABASE_URL, connect_args=connect_args)
+AsyncSessionLocal = async_sessionmaker(
+    async_engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+)
 
 
 class Base(DeclarativeBase):
