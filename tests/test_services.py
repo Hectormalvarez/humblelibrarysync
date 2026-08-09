@@ -28,7 +28,7 @@ from humble_sync.services.parser import (
     parse_dump,
 )
 from humble_sync.services.status import check_status, format_status_report
-from humble_sync.utils.text import extract_volume_info
+from humble_sync.utils.text import extract_volume_info, is_title_match
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -140,6 +140,43 @@ class TestExtractVolumeInfo:
         base, vol = extract_volume_info("Harry Potter Vol 1")
         assert base == "Harry Potter"
         assert vol == "Vol 1"
+
+
+# ── Fuzzy Title Matching Tests ───────────────────────────────────────────
+
+
+class TestIsTitleMatch:
+    """Tests for is_title_match function."""
+
+    def test_exact_normalised_match(self):
+        """Verify identical titles match."""
+        assert is_title_match("The Great Book", "the great book") is True
+
+    def test_punctuation_variations_match(self):
+        """Verify titles differing only in punctuation match."""
+        assert is_title_match("Book: A Story!", "Book A Story") is True
+
+    def test_similar_fuzzy_match(self):
+        """Verify titles above threshold are matched."""
+        assert is_title_match("The Great Gatsby", "The Great Gatsy") is True
+
+    def test_dissimilar_titles_no_match(self):
+        """Verify very different titles do not match."""
+        assert is_title_match("The Great Gatsby", "A Brief History of Time") is False
+
+    def test_empty_string_returns_false(self):
+        """Verify empty title returns False."""
+        assert is_title_match("", "Some Title") is False
+        assert is_title_match("Some Title", "") is False
+
+    def test_volume_match_same_base(self):
+        """Verify different volumes of same series match."""
+        assert is_title_match("Dune, Vol. 1", "Dune, Vol. 2") is True
+
+    def test_custom_threshold(self):
+        """Verify custom threshold parameter is respected."""
+        assert is_title_match("Book One", "Book Two", threshold=0.5) is True
+        assert is_title_match("Book One", "Book Two", threshold=0.99) is False
 
 
 # ── Duplicate Detection Tests ─────────────────────────────────────────────
