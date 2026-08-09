@@ -6,6 +6,8 @@ Uvicorn will look for the `app` object in this module when booting the server.
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
+from humble_sync.auth import auth_backend, fastapi_users, UserRead, UserCreate
+
 from app.routers.dashboard import router as dashboard_router
 from app.routers.deals import router as deals_router
 from app.routers.library import router as library_router
@@ -34,6 +36,18 @@ app.include_router(deals_router)
 
 # Include the sync router which handles the "/library/sync" endpoints.
 app.include_router(sync_router)
+
+# Include the auth and registration routers from fastapi-users.
+app.include_router(
+    fastapi_users.get_auth_router(auth_backend),
+    prefix="/auth/jwt",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
 
 
 @app.get("/health")

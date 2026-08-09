@@ -7,7 +7,8 @@ the request-scoped DB / manager dependencies consumed by FastAPI routers.
 import uuid
 from typing import Optional
 
-from fastapi_users import BaseUserManager, UUIDIDMixin
+from fastapi_users import FastAPIUsers, BaseUserManager, UUIDIDMixin
+from fastapi_users.schemas import BaseUser, BaseUserCreate, BaseUserUpdate
 from fastapi_users.authentication import (
     AuthenticationBackend,
     CookieTransport,
@@ -94,3 +95,32 @@ async def get_user_db():
 async def get_user_manager():
     """Yield a ``UserManager`` backed by the async user DB dependency."""
     yield UserManager(get_user_db())  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# FastAPI-Users instance
+# ---------------------------------------------------------------------------
+
+fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
+
+
+# ---------------------------------------------------------------------------
+# Schemas
+# ---------------------------------------------------------------------------
+
+class UserRead(BaseUser[uuid.UUID]):
+    """Schema for returning user data in responses."""
+
+    pass
+
+
+class UserCreate(BaseUserCreate):
+    """Schema for user registration payloads."""
+
+    pass
+
+
+class UserUpdate(BaseUserUpdate):
+    """Schema for user update payloads."""
+
+    pass
