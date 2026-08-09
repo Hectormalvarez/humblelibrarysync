@@ -1,6 +1,6 @@
-"""ORM model definitions for the Humble Library Sync catalog."""
+import uuid
 
-from sqlalchemy import Integer, String, JSON, ForeignKey
+from sqlalchemy import Integer, String, JSON, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
@@ -9,8 +9,12 @@ from humble_sync.db.database import Base
 
 class Bundle(Base):
     __tablename__ = "bundles"
+    __table_args__ = (UniqueConstraint("user_id", "title", name="uq_user_bundle_title"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String, index=True, nullable=False)
     purchase_date: Mapped[str | None] = mapped_column(String, nullable=True)
     captured_at: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -22,8 +26,12 @@ class Bundle(Base):
 
 class Item(Base):
     __tablename__ = "items"
+    __table_args__ = (UniqueConstraint("user_id", "bundle_id", "title", name="uq_user_item_bundle_title"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     bundle_id: Mapped[int] = mapped_column(
         ForeignKey("bundles.id", ondelete="CASCADE"), nullable=False
     )
@@ -38,10 +46,14 @@ class Item(Base):
 
 class EvaluatedBundle(Base):
     __tablename__ = "evaluated_bundles"
+    __table_args__ = (UniqueConstraint("user_id", "url", name="uq_user_evaluated_bundle_url"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     bundle_name: Mapped[str] = mapped_column(String, nullable=False)
-    url: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    url: Mapped[str] = mapped_column(String, index=True, nullable=False)
     machine_name: Mapped[str | None] = mapped_column(String, nullable=True)
     end_date: Mapped[str | None] = mapped_column(String, nullable=True)
     evaluated_at: Mapped[str | None] = mapped_column(String, nullable=True)
