@@ -7,6 +7,7 @@ from pathlib import Path
 from app.routers.library import get_sort_key
 from humble_sync.db.models import Bundle, Item
 from humble_sync.db.database import SessionLocal, Base, engine, reset_database
+from tests.conftest import TEST_USER_ID
 
 
 def test_library_search_endpoint(client):
@@ -20,7 +21,7 @@ def test_library_search_pagination(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Test Bundle")
+        bundle = Bundle(title="Test Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -33,6 +34,7 @@ def test_library_search_pagination(client):
                     item_type="download",
                     available_formats=["PDF"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.commit()
@@ -70,8 +72,8 @@ def test_library_search_initial_load_aggregations(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle_a = Bundle(title="Bundle A")
-        bundle_b = Bundle(title="Bundle B")
+        bundle_a = Bundle(title="Bundle A", user_id=TEST_USER_ID)
+        bundle_b = Bundle(title="Bundle B", user_id=TEST_USER_ID)
         db.add_all([bundle_a, bundle_b])
         db.flush()
 
@@ -84,6 +86,7 @@ def test_library_search_initial_load_aggregations(client):
                     item_type="download",
                     available_formats=["PDF"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         for i in range(2):
@@ -95,6 +98,7 @@ def test_library_search_initial_load_aggregations(client):
                     item_type="ebook",
                     available_formats=["EPUB"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.commit()
@@ -175,7 +179,7 @@ def test_library_overview_endpoint(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Overview Test Bundle")
+        bundle = Bundle(title="Overview Test Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -188,6 +192,7 @@ def test_library_overview_endpoint(client):
                     item_type="download",
                     available_formats=["PDF", "EPUB"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.add(
@@ -198,6 +203,7 @@ def test_library_overview_endpoint(client):
                 item_type="ebook",
                 available_formats=["EPUB"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -274,30 +280,32 @@ def test_get_publishers_stream(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Publishers Test Bundle")
+        bundle = Bundle(title="Publishers Test Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
-        for _ in range(3):
+        for i in range(3):
             db.add(
                 Item(
                     bundle_id=bundle.id,
-                    title="Publisher Row A",
+                    title=f"Publisher Row A {i}",
                     publisher="No Starch Press",
                     item_type="download",
                     available_formats=["PDF"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
-        for _ in range(2):
+        for i in range(2):
             db.add(
                 Item(
                     bundle_id=bundle.id,
-                    title="Publisher Row B",
+                    title=f"Publisher Row B {i}",
                     publisher="O'Reilly Media",
                     item_type="ebook",
                     available_formats=["EPUB"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.commit()
@@ -325,7 +333,7 @@ def test_get_publishers_stream(client):
         cleanup = SessionLocal()
         try:
             cleanup.query(Item).filter(
-                Item.title.in_(["Publisher Row A", "Publisher Row B"])
+                Item.title.like("Publisher Row %")
             ).delete()
             cleanup.query(Bundle).filter(
                 Bundle.title == "Publishers Test Bundle"
@@ -341,31 +349,33 @@ def test_get_bundles_stream(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle_x = Bundle(title="Bundle X")
-        bundle_y = Bundle(title="Bundle Y")
+        bundle_x = Bundle(title="Bundle X", user_id=TEST_USER_ID)
+        bundle_y = Bundle(title="Bundle Y", user_id=TEST_USER_ID)
         db.add_all([bundle_x, bundle_y])
         db.flush()
 
-        for _ in range(4):
+        for i in range(4):
             db.add(
                 Item(
                     bundle_id=bundle_x.id,
-                    title="Bundle X Item",
+                    title=f"Bundle X Item {i}",
                     publisher="Publisher X",
                     item_type="download",
                     available_formats=["PDF"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
-        for _ in range(1):
+        for i in range(1):
             db.add(
                 Item(
                     bundle_id=bundle_y.id,
-                    title="Bundle Y Item",
+                    title=f"Bundle Y Item {i}",
                     publisher="Publisher Y",
                     item_type="ebook",
                     available_formats=["EPUB"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.commit()
@@ -393,7 +403,7 @@ def test_get_bundles_stream(client):
         cleanup = SessionLocal()
         try:
             cleanup.query(Item).filter(
-                Item.title.in_(["Bundle X Item", "Bundle Y Item"])
+                Item.title.in_(["Bundle X Item 0", "Bundle X Item 1", "Bundle X Item 2", "Bundle X Item 3", "Bundle Y Item 0"])
             ).delete()
             cleanup.query(Bundle).filter(
                 Bundle.title.in_(["Bundle X", "Bundle Y"])
@@ -412,7 +422,7 @@ def test_get_item_inspector_detail(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Inspector Test Bundle")
+        bundle = Bundle(title="Inspector Test Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -427,6 +437,7 @@ def test_get_item_inspector_detail(client):
                 "pdf": {"url": "https://example.com/test.pdf", "human_size": "12.3 MB"},
                 "epub": {"url": "https://example.com/test.epub", "human_size": "4.5 MB"},
             },
+            user_id=TEST_USER_ID,
         )
         db.add(item)
         db.commit()
@@ -480,8 +491,8 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle_a = Bundle(title="Filter Bundle A")
-        bundle_b = Bundle(title="Filter Bundle B")
+        bundle_a = Bundle(title="Filter Bundle A", user_id=TEST_USER_ID)
+        bundle_b = Bundle(title="Filter Bundle B", user_id=TEST_USER_ID)
         db.add_all([bundle_a, bundle_b])
         db.flush()
 
@@ -494,6 +505,7 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.add(
@@ -504,6 +516,7 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.add(
@@ -514,6 +527,7 @@ def test_library_search_exact_publisher_and_bundle_filter(client):
                 item_type="ebook",
                 available_formats=["EPUB"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -579,7 +593,7 @@ def test_search_results_render_active_filter_badge(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Filter Badge Bundle")
+        bundle = Bundle(title="Filter Badge Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -591,6 +605,7 @@ def test_search_results_render_active_filter_badge(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -633,7 +648,7 @@ def test_category_row_htmx_drilldown_attributes(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Drilldown Test Bundle")
+        bundle = Bundle(title="Drilldown Test Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -645,6 +660,7 @@ def test_category_row_htmx_drilldown_attributes(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -681,7 +697,7 @@ def test_search_pagination_preserves_publisher_filter(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Pagination Filter Bundle")
+        bundle = Bundle(title="Pagination Filter Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -694,6 +710,7 @@ def test_search_pagination_preserves_publisher_filter(client):
                     item_type="download",
                     available_formats=["PDF"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.commit()
@@ -738,7 +755,7 @@ def test_search_pagination_returns_appended_items(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Append Test Bundle")
+        bundle = Bundle(title="Append Test Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -751,6 +768,7 @@ def test_search_pagination_returns_appended_items(client):
                     item_type="download",
                     available_formats=["PDF"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.commit()
@@ -807,7 +825,7 @@ def test_search_results_contain_inspector_htmx_triggers(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="HTMX Trigger Bundle")
+        bundle = Bundle(title="HTMX Trigger Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -819,6 +837,7 @@ def test_search_results_contain_inspector_htmx_triggers(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -848,7 +867,7 @@ def test_library_publishers_filtered_by_q(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Publisher Filter Bundle")
+        bundle = Bundle(title="Publisher Filter Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -860,6 +879,7 @@ def test_library_publishers_filtered_by_q(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.add(
@@ -870,6 +890,7 @@ def test_library_publishers_filtered_by_q(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -938,8 +959,8 @@ def test_library_bundles_filtered_by_q(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle_x = Bundle(title="Xenon Bundle")
-        bundle_y = Bundle(title="Yttrium Bundle")
+        bundle_x = Bundle(title="Xenon Bundle", user_id=TEST_USER_ID)
+        bundle_y = Bundle(title="Yttrium Bundle", user_id=TEST_USER_ID)
         db.add_all([bundle_x, bundle_y])
         db.flush()
 
@@ -951,6 +972,7 @@ def test_library_bundles_filtered_by_q(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.add(
@@ -961,6 +983,7 @@ def test_library_bundles_filtered_by_q(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -1031,7 +1054,7 @@ def test_search_results_hidden_filter_inputs(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Hidden Input Bundle")
+        bundle = Bundle(title="Hidden Input Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -1043,6 +1066,7 @@ def test_search_results_hidden_filter_inputs(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -1085,7 +1109,7 @@ def test_library_search_publisher_filter_and_sort_desc(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Sort Filter Bundle")
+        bundle = Bundle(title="Sort Filter Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -1097,6 +1121,7 @@ def test_library_search_publisher_filter_and_sort_desc(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.add(
@@ -1107,6 +1132,7 @@ def test_library_search_publisher_filter_and_sort_desc(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.add(
@@ -1117,6 +1143,7 @@ def test_library_search_publisher_filter_and_sort_desc(client):
                 item_type="download",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
         )
         db.commit()
@@ -1154,7 +1181,7 @@ def test_scroll_sentinel_includes_sort_parameter(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle = Bundle(title="Sentinel Sort Bundle")
+        bundle = Bundle(title="Sentinel Sort Bundle", user_id=TEST_USER_ID)
         db.add(bundle)
         db.flush()
 
@@ -1167,6 +1194,7 @@ def test_scroll_sentinel_includes_sort_parameter(client):
                     item_type="download",
                     available_formats=["PDF"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.commit()
@@ -1235,9 +1263,9 @@ def test_library_bundles_date_desc_sort(client):
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        bundle_old = Bundle(title="Oldest Bundle", purchase_date="2020-01-15")
-        bundle_new = Bundle(title="Newest Bundle", purchase_date="2024-06-01")
-        bundle_none = Bundle(title="No Date Bundle", purchase_date=None)
+        bundle_old = Bundle(title="Oldest Bundle", purchase_date="2020-01-15", user_id=TEST_USER_ID)
+        bundle_new = Bundle(title="Newest Bundle", purchase_date="2024-06-01", user_id=TEST_USER_ID)
+        bundle_none = Bundle(title="No Date Bundle", purchase_date=None, user_id=TEST_USER_ID)
         db.add_all([bundle_old, bundle_new, bundle_none])
         db.flush()
 
@@ -1250,6 +1278,7 @@ def test_library_bundles_date_desc_sort(client):
                     item_type="download",
                     available_formats=["PDF"],
                     downloads={},
+                    user_id=TEST_USER_ID,
                 )
             )
         db.commit()

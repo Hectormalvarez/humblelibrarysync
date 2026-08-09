@@ -7,6 +7,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
+from humble_sync.auth import fastapi_users
+from humble_sync.db.models import User
 from humble_sync.db.queries import (
     get_all_bundles,
     get_all_publishers,
@@ -21,6 +23,8 @@ router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
 
+current_active_user = fastapi_users.current_user(active=True)
+
 
 @router.get("/library/search")
 def library_search(
@@ -32,6 +36,7 @@ def library_search(
     limit: int = Query(30, ge=1),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     """
     HTMX partial endpoint – searches items by title (case-insensitive) and
@@ -47,6 +52,7 @@ def library_search(
         sort=sort,
         limit=limit,
         offset=offset,
+        user_id=user.id,
     )
 
     # Add request-specific context for template rendering
@@ -66,7 +72,7 @@ def library_search(
     # Initial page load state (empty search, first page): aggregate top
     # publishers and bundles so the home page can show category stats.
     if q == "" and publisher is None and bundle_id is None:
-        summaries = get_top_publishers_and_bundles(db)
+        summaries = get_top_publishers_and_bundles(db, user_id=user.id)
         result["publishers_summary"] = summaries["publishers_summary"]
         result["bundles_summary"] = summaries["bundles_summary"]
     else:
@@ -84,6 +90,7 @@ def library_search(
 def library_overview(
     request: Request,
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     """
     HTMX partial endpoint – returns aggregate library metrics (total items,
@@ -91,7 +98,7 @@ def library_overview(
     default right inspector pane. The rendered partial is swapped into the
     ``#inspector-drawer`` container on page load.
     """
-    metrics = get_library_metrics(db)
+    metrics = get_library_metrics(db, user_id=user.id)
 
     return templates.TemplateResponse(
         request,
@@ -106,6 +113,7 @@ def library_publishers(
     q: str = "",
     sort: str = Query("title_asc"),
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     """
     HTMX partial endpoint – returns every publisher in the library along
@@ -113,7 +121,7 @@ def library_publishers(
     is swapped into the ``#master-stream`` container, replacing the
     previous view.
     """
-    publishers, active_sort = get_all_publishers(db, q=q, sort=sort)
+    publishers, active_sort = get_all_publishers(db, q=q, sort=sort, user_id=user.id)
     return templates.TemplateResponse(
         request,
         "partials/publisher_list.html",
@@ -127,13 +135,14 @@ def library_bundles(
     q: str = "",
     sort: str = Query("title_asc"),
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     """
     HTMX partial endpoint – returns every bundle in the library along
     with the total number of items contained in it.  The rendered partial
     is swapped into the ``#master-stream`` container.
     """
-    bundles, active_sort = get_all_bundles(db, q=q, sort=sort)
+    bundles, active_sort = get_all_bundles(db, q=q, sort=sort, user_id=user.id)
     return templates.TemplateResponse(
         request,
         "partials/bundle_list.html",
@@ -146,6 +155,7 @@ def library_item_detail(
     request: Request,
     item_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     """
     HTMX partial endpoint – returns the full detail view for a single
@@ -155,7 +165,7 @@ def library_item_detail(
     Returns HTTP 404 when the requested item does not exist.  The rendered
     partial is swapped into the ``#inspector-drawer`` container.
     """
-    item = get_item_by_id(db, item_id)
+    item = get_item_by_id(db, item_id, user_id=user.id)
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
 
