@@ -48,11 +48,13 @@ def clean_test_database():
     from app.routers.deals import current_active_user as deals_user
     from app.routers.sync import current_active_user as sync_user
     from app.routers.booklog import current_active_user as booklog_user
+    from app.routers.export import current_active_user as export_user
     app.dependency_overrides[dashboard_user] = _override_current_user
     app.dependency_overrides[library_user] = _override_current_user
     app.dependency_overrides[deals_user] = _override_current_user
     app.dependency_overrides[sync_user] = _override_current_user
     app.dependency_overrides[booklog_user] = _override_current_user
+    app.dependency_overrides[export_user] = _override_current_user
     yield
     app.dependency_overrides.clear()
 
