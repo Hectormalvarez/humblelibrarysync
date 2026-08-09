@@ -11,6 +11,7 @@
 <body>
   <nav>
     <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">📚 Library Browser</a>
+    <a href="/booklog" class="nav-link {% if request.url.path == '/booklog' %}active{% endif %}">🔖 Book Log</a>
     <a href="/deals" class="nav-link {% if request.url.path == '/deals' %}active{% endif %}">🌐 Deal Inspector</a>
     {% if user %}
     <a href="#" class="nav-link"
