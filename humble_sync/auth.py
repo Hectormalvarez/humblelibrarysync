@@ -14,9 +14,11 @@ from fastapi_users.authentication import (
     CookieTransport,
     JWTStrategy,
 )
+from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from humble_sync.db.database import AsyncSessionLocal
+from app.dependencies import async_get_db
 from humble_sync.db.models import User
 
 COOKIE_NAME = "humble_auth"
@@ -86,15 +88,14 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 # Async dependency helpers
 # ---------------------------------------------------------------------------
 
-async def get_user_db():
+async def get_user_db(db: AsyncSession = Depends(async_get_db)):
     """Yield a ``SQLAlchemyUserDatabase`` backed by an async session."""
-    async with AsyncSessionLocal() as session:
-        yield SQLAlchemyUserDatabase(session, User)  # type: ignore[arg-type]
+    yield SQLAlchemyUserDatabase(db, User)  # type: ignore[arg-type]
 
 
-async def get_user_manager():
+async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
     """Yield a ``UserManager`` backed by the async user DB dependency."""
-    yield UserManager(get_user_db())  # type: ignore[arg-type]
+    yield UserManager(user_db)
 
 
 # ---------------------------------------------------------------------------
