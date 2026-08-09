@@ -2,6 +2,7 @@
 
 from sqlalchemy import Integer, String, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
 from humble_sync.db.database import Base
 
@@ -46,3 +47,7 @@ class EvaluatedBundle(Base):
     evaluated_at: Mapped[str | None] = mapped_column(String, nullable=True)
     expired_at: Mapped[str | None] = mapped_column(String, nullable=True)
     evaluation: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class User(SQLAlchemyBaseUserTableUUID, Base):
+    __tablename__ = "users"
