@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime, timezone
 
-from sqlalchemy import Integer, String, JSON, ForeignKey, UniqueConstraint
+from sqlalchemy import Float, Integer, String, JSON, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 
@@ -59,6 +60,35 @@ class EvaluatedBundle(Base):
     evaluated_at: Mapped[str | None] = mapped_column(String, nullable=True)
     expired_at: Mapped[str | None] = mapped_column(String, nullable=True)
     evaluation: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class UserBookLog(Base):
+    __tablename__ = "user_book_logs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "norm_title", "status", name="uq_user_booklog_entry"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    item_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    norm_title: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    volume_info: Mapped[str | None] = mapped_column(String, nullable=True)
+    author_or_publisher: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, index=True, default="wishlist")
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    target_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cover_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[str] = mapped_column(
+        String,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+    updated_at: Mapped[str] = mapped_column(
+        String,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
