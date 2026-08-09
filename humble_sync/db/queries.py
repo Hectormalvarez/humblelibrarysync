@@ -613,3 +613,27 @@ def delete_booklog_entry(
     db.delete(entry)
     db.flush()
     return True
+
+
+def get_user_wishlist_normalized_set(
+    db: Session,
+    user_id: uuid.UUID,
+) -> set[tuple[str, str | None]]:
+    """Return a set of ``(norm_title, volume_info)`` tuples for all ``wishlist`` entries.
+
+    This is an O(1) lookup builder used by the deal evaluator to cross-match
+    bundle items against the user's wishlist.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    user_id:
+        Owner UUID – strictly enforced.
+    """
+    rows = (
+        db.query(UserBookLog.norm_title, UserBookLog.volume_info)
+        .filter(UserBookLog.user_id == user_id, UserBookLog.status == "wishlist")
+        .all()
+    )
+    return {(norm_title, vol) for norm_title, vol in rows}

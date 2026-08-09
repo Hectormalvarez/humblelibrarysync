@@ -416,3 +416,126 @@ def test_dynamic_user_switching(client):
     assert "UserA Item Alpha" not in resp.text
 
     _app.dependency_overrides.pop(library_user, None)
+
+
+# ---------------------------------------------------------------------------
+# Book Log multi-tenant isolation tests
+# ---------------------------------------------------------------------------
+
+from humble_sync.db.models import UserBookLog
+from humble_sync.db.queries import (
+    add_or_update_booklog_entry,
+    get_user_booklog,
+    get_booklog_entry_by_id,
+    delete_booklog_entry,
+    get_user_wishlist_normalized_set,
+)
+from humble_sync.utils.text import normalize_title
+
+
+def _seed_booklog_data():
+    """Insert booklog entries for both users."""
+    db = SessionLocal()
+    try:
+        add_or_update_booklog_entry(
+            db,
+            user_id=user_a_id,
+            title="UserA Wishlist Alpha",
+            norm_title=normalize_title("UserA Wishlist Alpha"),
+            status="wishlist",
+        )
+        add_or_update_booklog_entry(
+            db,
+            user_id=user_a_id,
+            title="UserA Wishlist Beta",
+            norm_title=normalize_title("UserA Wishlist Beta"),
+            status="wishlist",
+        )
+        add_or_update_booklog_entry(
+            db,
+            user_id=user_b_id,
+            title="UserB Wishlist One",
+            norm_title=normalize_title("UserB Wishlist One"),
+            status="wishlist",
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_booklog_query_isolation():
+    """get_user_booklog scoped to user_b must not return user_a entries."""
+    _seed_booklog_data()
+
+    db = SessionLocal()
+    try:
+        entries_a = get_user_booklog(db, user_id=user_a_id)
+        entries_b = get_user_booklog(db, user_id=user_b_id)
+
+        titles_a = {e.title for e in entries_a}
+        titles_b = {e.title for e in entries_b}
+
+        assert len(entries_a) == 2
+        assert len(entries_b) == 1
+        assert titles_a == {"UserA Wishlist Alpha", "UserA Wishlist Beta"}
+        assert titles_b == {"UserB Wishlist One"}
+        assert titles_a.isdisjoint(titles_b), "Booklog entries leaked across users"
+    finally:
+        db.close()
+
+
+def test_booklog_get_by_id_isolation():
+    """get_booklog_entry_by_id must return an entry only if the user_id matches."""
+    _seed_booklog_data()
+
+    db = SessionLocal()
+    try:
+        user_a_entry = db.query(UserBookLog).filter(UserBookLog.user_id == user_a_id).first()
+        assert user_a_entry is not None
+
+        # user_b should NOT see user_a's entry
+        result = get_booklog_entry_by_id(db, user_a_entry.id, user_id=user_b_id)
+        assert result is None
+
+        # user_a SHOULD see their own
+        result_a = get_booklog_entry_by_id(db, user_a_entry.id, user_id=user_a_id)
+        assert result_a is not None
+    finally:
+        db.close()
+
+
+def test_booklog_delete_isolation():
+    """delete_booklog_entry must not allow cross-user deletion."""
+    _seed_booklog_data()
+
+    db = SessionLocal()
+    try:
+        user_a_entry = db.query(UserBookLog).filter(UserBookLog.user_id == user_a_id).first()
+        entry_id = user_a_entry.id
+
+        # user_b tries to delete user_a's entry – should fail (return False)
+        deleted = delete_booklog_entry(db, entry_id, user_id=user_b_id)
+        assert deleted is False
+
+        # user_a deletes their own – should succeed
+        deleted = delete_booklog_entry(db, entry_id, user_id=user_a_id)
+        assert deleted is True
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_wishlist_set_isolation():
+    """get_user_wishlist_normalized_set must be scoped per user."""
+    _seed_booklog_data()
+
+    db = SessionLocal()
+    try:
+        set_a = get_user_wishlist_normalized_set(db, user_id=user_a_id)
+        set_b = get_user_wishlist_normalized_set(db, user_id=user_b_id)
+
+        assert len(set_a) == 2
+        assert len(set_b) == 1
+        assert set_a.isdisjoint(set_b), "Wishlist sets leaked across users"
+    finally:
+        db.close()
