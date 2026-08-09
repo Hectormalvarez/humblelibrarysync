@@ -28,6 +28,7 @@ from humble_sync.services.parser import (
     parse_dump,
 )
 from humble_sync.services.status import check_status, format_status_report
+from humble_sync.utils.text import extract_volume_info
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -78,6 +79,67 @@ class TestNormalizeTitle:
     def test_underscores_preserved(self):
         """Verify underscores are preserved (they are word characters)."""
         assert normalize_title("book_title") == "book_title"
+
+
+# ── Volume Extraction Tests ──────────────────────────────────────────────
+
+
+class TestExtractVolumeInfo:
+    """Tests for extract_volume_info function."""
+
+    def test_vol_with_comma(self):
+        """Verify 'Title, Vol. 3' is parsed correctly."""
+        base, vol = extract_volume_info("Dune, Vol. 2")
+        assert base == "Dune"
+        assert vol == "Vol. 2"
+
+    def test_volume_keyword(self):
+        """Verify 'Title, Volume 3' extracts the volume number."""
+        base, vol = extract_volume_info("Foundation, Volume 3")
+        assert base == "Foundation"
+        assert vol == "Volume 3"
+
+    def test_book_number(self):
+        """Verify 'Title Book 3' extracts the book marker."""
+        base, vol = extract_volume_info("Foundation Book 3")
+        assert base == "Foundation"
+        assert vol == "Book 3"
+
+    def test_edition_after_comma(self):
+        """Verify 'Title, Edition 4' extracts edition."""
+        base, vol = extract_volume_info("Design Patterns, Edition 4")
+        assert base == "Design Patterns"
+        assert vol == "Edition 4"
+
+    def test_ordinal_edition(self):
+        """Verify 'Title 3rd Edition' extracts ordinal edition."""
+        base, vol = extract_volume_info("Clean Code 3rd Edition")
+        assert base == "Clean Code"
+        assert vol == "3rd Edition"
+
+    def test_parenthetical_number(self):
+        """Verify 'Title (#5)' extracts parenthetical volume."""
+        base, vol = extract_volume_info("A Story (#5)")
+        assert base == "A Story"
+        assert vol == "(#5)"
+
+    def test_no_match_returns_none(self):
+        """Verify title without volume markers returns None."""
+        base, vol = extract_volume_info("Plain Title")
+        assert base == "Plain Title"
+        assert vol is None
+
+    def test_empty_string(self):
+        """Verify empty string returns empty title and None."""
+        base, vol = extract_volume_info("")
+        assert base == ""
+        assert vol is None
+
+    def test_volume_at_end(self):
+        """Verify 'Title Vol 1' (space-separated, no comma) works."""
+        base, vol = extract_volume_info("Harry Potter Vol 1")
+        assert base == "Harry Potter"
+        assert vol == "Vol 1"
 
 
 # ── Duplicate Detection Tests ─────────────────────────────────────────────
