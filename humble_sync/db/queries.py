@@ -21,6 +21,11 @@ _PREFIX_RE = re.compile(
 )
 
 
+def get_total_item_count(db: Session) -> int:
+    """Return the total number of items in the catalog."""
+    return db.query(func.count(Item.id)).scalar() or 0
+
+
 def get_sort_key(title: str) -> str:
     """Return a lowercase, prefix-stripped title suitable for smart A-Z sorting."""
     return _PREFIX_RE.sub("", title).strip().lower()

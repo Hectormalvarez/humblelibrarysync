@@ -5,10 +5,9 @@ Dashboard router – serves the main web GUI page with dynamic data.
 from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from app.dependencies import get_db
-from humble_sync.db.models import Item
+from humble_sync.db.queries import get_total_item_count
 
 router = APIRouter()
 
@@ -24,7 +23,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     allowing the endpoint to query the total count of Item records and
     pass it to the template for display.
     """
-    item_count = db.query(func.count(Item.id)).scalar()
+    item_count = get_total_item_count(db)
     return templates.TemplateResponse(
         request,
         "pages/home.html",
