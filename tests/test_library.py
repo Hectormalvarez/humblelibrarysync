@@ -2,6 +2,8 @@
 Tests for the library search feature endpoints.
 """
 
+from pathlib import Path
+
 from app.routers.library import get_sort_key
 from humble_sync.db.models import Bundle, Item
 from humble_sync.db.database import SessionLocal, Base, engine, reset_database
@@ -914,21 +916,20 @@ def test_library_publishers_filtered_by_q(client):
 
 
 def test_home_page_escape_key_cascade(client):
-    """Verify that the home page contains a global Escape key listener
-    implementing a 3-tier cancellation cascade: clear search, close
-    inspector drawer, and clear active filter."""
+    """Verify that the home page includes the external app.js script which
+    implements a 4-tier Escape key cancellation cascade."""
     response = client.get("/")
     assert response.status_code == 200
-    # The global keydown listener must be present
-    assert "document.addEventListener('keydown'" in response.text
-    # Escape key check
-    assert "'Escape'" in response.text
-    # Tier 1: references #library-search
-    assert "getElementById('library-search')" in response.text
-    # Tier 2: references .drawer-close inside #inspector-drawer
-    assert "#inspector-drawer .drawer-close" in response.text
-    # Tier 3: references .filter-clear-btn
-    assert ".filter-clear-btn" in response.text
+    # The external app.js script must be referenced in the rendered page
+    assert '<script src="/static/js/app.js" defer></script>' in response.text
+    # Verify the JS source file contains the escape-key cascade logic
+    js_path = Path(__file__).resolve().parent.parent / "app" / "static" / "js" / "app.js"
+    js_source = js_path.read_text()
+    assert 'document.addEventListener("keydown"' in js_source
+    assert '"Escape"' in js_source
+    assert 'getElementById("library-search")' in js_source
+    assert "#inspector-drawer .drawer-close" in js_source
+    assert ".filter-clear-btn" in js_source
 
 
 def test_library_bundles_filtered_by_q(client):
@@ -1197,39 +1198,35 @@ def test_scroll_sentinel_includes_sort_parameter(client):
 
 def test_home_page_sync_sort_dropdown(client):
     """Verify that home.html includes context-aware sort option definitions
-    and the syncSortDropdown JavaScript function so the sort dropdown
-    dynamically adapts to the active view (books vs. publishers/bundles)."""
+    and that the external app.js contains the syncSortDropdown function so
+    the sort dropdown dynamically adapts to the active view."""
     response = client.get("/")
     assert response.status_code == 200
 
-    # The syncSortDropdown function must be defined
-    assert "function syncSortDropdown(viewType)" in response.text
+    # The external app.js script must be referenced in the rendered page
+    assert '<script src="/static/js/app.js" defer></script>' in response.text
 
-    # Books view sort options
+    # Books view sort options (present in the HTML template)
     assert '<option value="title_asc">Title (A to Z)</option>' in response.text
     assert '<option value="title_desc">Title (Z to A)</option>' in response.text
     assert '<option value="publisher_asc">Publisher (A to Z)</option>' in response.text
 
-    # Category (publishers/bundles) view sort options (Name-based + counts)
-    assert '<option value="count_desc">Most Items</option>' in response.text
-    assert '<option value="count_asc">Least Items</option>' in response.text
+    # Verify the JS source file contains syncSortDropdown logic
+    js_path = Path(__file__).resolve().parent.parent / "app" / "static" / "js" / "app.js"
+    js_source = js_path.read_text()
+    assert "function syncSortDropdown(viewType)" in js_source
+    assert 'viewType === "books"' in js_source
+    assert 'viewType === "publishers"' in js_source
+    assert 'viewType === "bundles"' in js_source
+    assert 'currentValue === "count_desc"' in js_source
+    assert 'currentValue === "publisher_asc"' in js_source
+    assert 'currentValue === "date_desc"' in js_source
 
-    # Bundles view date sort options
-    assert '<option value="date_desc">Newest Purchase</option>' in response.text
-    assert '<option value="date_asc">Oldest Purchase</option>' in response.text
-
-    # The function should handle the books viewType branch
-    assert "viewType === 'books'" in response.text
-    # The function should handle the publishers/bundles viewType branch
-    assert "viewType === 'publishers'" in response.text
-    assert "viewType === 'bundles'" in response.text
-
-    # The dropdown reset logic: count desc/asc → title_asc for books
-    assert "currentValue === 'count_desc'" in response.text
-    # The dropdown reset logic: publisher_asc → title_asc for categories
-    assert "currentValue === 'publisher_asc'" in response.text
-    # The dropdown reset logic: date desc/asc → title_asc for publishers
-    assert "currentValue === 'date_desc'" in response.text
+    # Category (publishers/bundles) sort options (defined in JS, verify source)
+    assert 'Most Items' in js_source
+    assert 'Least Items' in js_source
+    assert 'Newest Purchase' in js_source
+    assert 'Oldest Purchase' in js_source
 
 
 def test_library_bundles_date_desc_sort(client):
