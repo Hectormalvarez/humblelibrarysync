@@ -36,6 +36,14 @@
     >×</button>
   </div>
 
+  <!-- Wishlist Match Banner -->
+  {% if wishlist_match_count is defined and wishlist_match_count > 0 %}
+  <div class="error-alert" style="background:var(--color-bg-accent, #e7f1ff);border-color:var(--color-accent, #007bff);margin-bottom:var(--space-3);">
+    🔖 <strong>{{ wishlist_match_count }} wishlist match{{ 'es' if wishlist_match_count != 1 else '' }}:</strong>
+    {{ wishlist_matches | join(', ') }}
+  </div>
+  {% endif %}
+
   <!-- Overlap Summary Badge -->
   <section class="inspector-meta">
     <div class="overlap-summary">

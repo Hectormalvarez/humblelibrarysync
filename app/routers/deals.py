@@ -21,7 +21,7 @@ from humble_sync.services.evaluator import (
     group_bundles_by_category,
 )
 from humble_sync.services.bundle_cache import load_active_bundles
-from humble_sync.db.queries import get_evaluated_bundle_by_url, get_library_item_titles
+from humble_sync.db.queries import get_evaluated_bundle_by_url, get_library_item_titles, get_user_wishlist_normalized_set
 
 router = APIRouter()
 
@@ -130,6 +130,8 @@ def deals_inspect_expired(
             "new_items_count": len(eval_data.get("new_items", [])),
             "pricing": eval_data.get("pricing", []),
             "tier_breakdown": eval_data.get("tier_breakdown", []),
+            "wishlist_match_count": eval_data.get("wishlist_match_count", 0),
+            "wishlist_matches": eval_data.get("wishlist_matches", []),
         },
     )
 
@@ -176,8 +178,11 @@ def deals_inspect(
     # 2. Fetch library items from DB
     library_items = get_library_item_titles(db, user_id=user.id)
 
-    # 3. Evaluate overlap
-    eval_data = evaluate_deal(bundle_items, library_items, pricing, tier_item_map)
+    # 3. Fetch wishlist set for cross-matching
+    wishlist_set = get_user_wishlist_normalized_set(db, user_id=user.id)
+
+    # 4. Evaluate overlap
+    eval_data = evaluate_deal(bundle_items, library_items, pricing, tier_item_map, wishlist_items=wishlist_set)
 
     # 4. Log evaluation
     try:
@@ -204,5 +209,7 @@ def deals_inspect(
             "new_items_count": len(eval_data.get("new_items", [])),
             "pricing": pricing,
             "tier_breakdown": eval_data.get("tier_breakdown", []),
+            "wishlist_match_count": eval_data.get("wishlist_match_count", 0),
+            "wishlist_matches": eval_data.get("wishlist_matches", []),
         },
     )
