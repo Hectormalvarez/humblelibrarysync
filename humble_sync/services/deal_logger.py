@@ -11,9 +11,13 @@ from humble_sync.db.database import SessionLocal, init_db
 from humble_sync.db.models import EvaluatedBundle
 
 
-def load_evaluated_bundles_log() -> list[dict[str, Any]]:
+def load_evaluated_bundles_log(user_id=None) -> list[dict[str, Any]]:
     """
-    Loads all evaluated bundle records from the database.
+    Loads evaluated bundle records from the database, optionally
+    scoped to a specific user.
+
+    Args:
+        user_id: If provided, only return records belonging to this user.
 
     Returns:
         List of dicts with keys: bundle_name, url, machine_name,
@@ -22,7 +26,10 @@ def load_evaluated_bundles_log() -> list[dict[str, Any]]:
     init_db()
     db = SessionLocal()
     try:
-        records = db.query(EvaluatedBundle).all()
+        query = db.query(EvaluatedBundle)
+        if user_id is not None:
+            query = query.filter(EvaluatedBundle.user_id == user_id)
+        records = query.all()
         return [
             {
                 "bundle_name": r.bundle_name,
@@ -45,12 +52,13 @@ def log_evaluated_bundle(
     machine_name: str,
     end_date: str,
     eval_data: dict[str, Any],
+    user_id=None,
 ) -> None:
     """
     Records or updates a bundle evaluation in the database.
 
-    If an entry with the same *bundle_url* already exists, its fields
-    are updated (preserving any existing ``expired_at``).
+    If an entry with the same *bundle_url* and *user_id* already exists,
+    its fields are updated (preserving any existing ``expired_at``).
     Otherwise a new ``EvaluatedBundle`` record is inserted.
     """
     now_str = datetime.now(timezone.utc).isoformat()
@@ -68,9 +76,12 @@ def log_evaluated_bundle(
     init_db()
     db = SessionLocal()
     try:
-        existing = db.query(EvaluatedBundle).filter(
+        query = db.query(EvaluatedBundle).filter(
             EvaluatedBundle.url == bundle_url
-        ).first()
+        )
+        if user_id is not None:
+            query = query.filter(EvaluatedBundle.user_id == user_id)
+        existing = query.first()
 
         if existing:
             existing.bundle_name = bundle_name
@@ -87,6 +98,7 @@ def log_evaluated_bundle(
                 evaluated_at=now_str,
                 expired_at=None,
                 evaluation=log_eval,
+                user_id=user_id,
             )
             db.add(record)
 
@@ -101,19 +113,25 @@ def log_evaluated_bundle(
 # ── Expiration Tracking ─────────────────────────────────────────────────
 
 
-def mark_expired_entries() -> None:
+def mark_expired_entries(user_id=None) -> None:
     """
     Scans the database for unexpired entries whose ``end_date``
     is in the past and sets their ``expired_at`` to the current UTC time.
+
+    Args:
+        user_id: If provided, only mark entries belonging to this user.
     """
     now = datetime.now(timezone.utc)
     now_str = now.isoformat()
     init_db()
     db = SessionLocal()
     try:
-        unexpired = db.query(EvaluatedBundle).filter(
+        query = db.query(EvaluatedBundle).filter(
             EvaluatedBundle.expired_at.is_(None)
-        ).all()
+        )
+        if user_id is not None:
+            query = query.filter(EvaluatedBundle.user_id == user_id)
+        unexpired = query.all()
         for record in unexpired:
             end_str = record.end_date
             if not end_str:
