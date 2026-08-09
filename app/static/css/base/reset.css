@@ -1,0 +1,70 @@
+/* ================================================================
+   RESET
+   Normalise box model and remove UA margins/padding so every
+   element starts from a consistent baseline.
+   ================================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * html & body together form the document viewport.  Both are locked to
+ * `height: 100%` and `overflow: hidden` so the browser window itself
+ * can never produce a scrollbar – scrolling is delegated entirely to
+ * the inner .stream-container (see Section 5).  Without this, even a
+ * perfectly-sticky control bar would still scroll off the screen if the
+ * body grew taller than the viewport.
+ */
+html {
+  height: 100%;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/*
+ * body is a vertical flex container so the <nav> stays at its natural
+ * height and the .app-workspace below it fills the remaining space.
+ * `overflow: hidden` on body is the second half of the document-scroll
+ * lock – paired with `html { overflow: hidden }` above it guarantees
+ * no scrollbar ever appears on the page itself.
+ */
+body {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.6;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-app);
+  color: var(--color-text-primary);
+}
+
+/* Visual media should never overflow their container. */
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Inherit font for form elements so they respect the body stack. */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Remove default link underline – we re-add it explicitly where needed. */
+a {
+  color: inherit;
+  text-decoration: none;
+}

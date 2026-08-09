@@ -1,0 +1,77 @@
+/* ================================================================
+   DESIGN TOKENS
+   Centralised values so colours, spacing, and type scale can be
+   tweaked in one place without hunting through the entire file.
+   ================================================================ */
+:root {
+  /* ----- Neutral palette ----- */
+  --color-bg-app:           #fafafa;
+  --color-bg-surface:       #ffffff;
+  --color-text-primary:     #1a1a1a;
+  --color-text-secondary:   #666666;
+  --color-text-muted:       #6b6b6b;
+  --color-border:           #e0e0e0;
+  --color-border-light:     #f0f0f0;
+  --color-bg-hover:         #f5f5f5;
+  --color-bg-elevated:      #27272a;
+  --color-text-inverse:     #ffffff;
+
+  /* ----- Accent palette ----- */
+  --color-accent:           #6366f1;
+  --color-accent-hover:     #4f46e5;
+  --color-accent-ring:      rgba(99, 102, 241, 0.15);
+
+  /* ----- Semantic colours ----- */
+  --color-success:          #22c55e;
+  --color-success-dark:     #16a34a;
+  --color-success-bg:       #f0fdf4;
+  --color-error-bg:         #fee2e2;
+  --color-error-text:       #991b1b;
+  --color-error-border:     #fca5a5;
+  --color-border-strong:    #bbb;
+
+  /* ----- Badge colours ----- */
+  --color-badge-bg:         #e8e8e8;
+  --color-badge-text:       #555555;
+  --color-badge-pdf-bg:     #fee2e2;
+  --color-badge-pdf-text:   #991b1b;
+  --color-badge-epub-bg:    #dbeafe;
+  --color-badge-epub-text:  #1e40af;
+  --color-badge-mobi-bg:    #fef3c7;
+  --color-badge-mobi-text:  #92400e;
+
+  /* ----- Font families ----- */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+               Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: "SF Mono", "Cascadia Code", "Fira Code", "Consolas",
+               "Liberation Mono", monospace;
+
+  /* ----- Type scale (fluid) ----- */
+  --text-xs:   clamp(0.65rem, 0.5vw + 0.5rem, 0.72rem);
+  --text-sm:   clamp(0.75rem, 0.8vw + 0.5rem, 0.8rem);
+  --text-base: clamp(0.875rem, 1vw + 0.5rem, 0.95rem);
+  --text-md:   clamp(0.95rem, 1.2vw + 0.5rem, 1rem);
+  --text-lg:   clamp(1.05rem, 1.5vw + 0.5rem, 1.15rem);
+  --text-xl:   clamp(1.2rem, 2vw + 0.5rem, 1.35rem);
+  --text-2xl:  clamp(1.5rem, 3vw + 0.5rem, 1.75rem);
+
+  /* ----- Spacing grid (4 px base) ----- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 2rem;
+  --space-8: 2.5rem;
+
+  /* ----- Radii ----- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* ----- Shadows ----- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-focus: 0 0 0 3px var(--color-accent-ring);
+}
