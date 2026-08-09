@@ -7,9 +7,13 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
+from humble_sync.auth import fastapi_users
+from humble_sync.db.models import User
 from humble_sync.services.client import sync_account_library
 
 router = APIRouter()
+
+current_active_user = fastapi_users.current_user(active=True)
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -32,6 +36,7 @@ async def sync_library(
     request: Request,
     session_cookie: str = Form(""),
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     """
     HTMX partial endpoint – syncs the user's Humble Bundle library
@@ -46,7 +51,7 @@ async def sync_library(
         )
 
     try:
-        catalog = await sync_account_library(session_cookie.strip(), db_session=db)
+        catalog = await sync_account_library(session_cookie.strip(), db_session=db, user_id=user.id)
         metadata = catalog.get("metadata", {})
         total_items = metadata.get("total_items", 0)
         # Count unique bundles from the items list
