@@ -31,9 +31,9 @@ current_active_user = fastapi_users.current_user(active=True)
 
 
 @router.get("/deals")
-def deals_page(request: Request):
+def deals_page(request: Request, user: User = Depends(current_active_user)):
     """Serve the main Deal Inspector page."""
-    return templates.TemplateResponse(request, "pages/deals.html")
+    return templates.TemplateResponse(request, "pages/deals.html", {"user": user})
 
 
 @router.get("/deals/live")

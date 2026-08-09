@@ -7,15 +7,19 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
+from humble_sync.auth import fastapi_users
+from humble_sync.db.models import User
 from humble_sync.db.queries import get_total_item_count
 
 router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
 
+current_active_user = fastapi_users.current_user(active=True)
+
 
 @router.get("/")
-def dashboard(request: Request, db: Session = Depends(get_db)):
+def dashboard(request: Request, db: Session = Depends(get_db), user: User = Depends(current_active_user)):
     """
     Root endpoint – renders the main web GUI page with dynamic data.
 
@@ -27,5 +31,5 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "pages/home.html",
-        {"item_count": item_count},
+        {"item_count": item_count, "user": user},
     )

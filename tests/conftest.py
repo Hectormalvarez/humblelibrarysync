@@ -43,9 +43,11 @@ def clean_test_database():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     # Override the auth dependency so all endpoints accept a stub user.
+    from app.routers.dashboard import current_active_user as dashboard_user
     from app.routers.library import current_active_user as library_user
     from app.routers.deals import current_active_user as deals_user
     from app.routers.sync import current_active_user as sync_user
+    app.dependency_overrides[dashboard_user] = _override_current_user
     app.dependency_overrides[library_user] = _override_current_user
     app.dependency_overrides[deals_user] = _override_current_user
     app.dependency_overrides[sync_user] = _override_current_user

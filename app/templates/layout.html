@@ -12,10 +12,14 @@
   <nav>
     <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">📚 Library Browser</a>
     <a href="/deals" class="nav-link {% if request.url.path == '/deals' %}active{% endif %}">🌐 Deal Inspector</a>
+    {% if user %}
     <a href="#" class="nav-link"
        hx-get="/library/sync/modal"
        hx-target="#sync-modal-container"
        hx-swap="innerHTML">Sync Library 🔄</a>
+    <span class="nav-user-badge">{{ user.email }}</span>
+    <a href="/auth/logout" class="nav-link nav-logout">Logout</a>
+    {% endif %}
   </nav>
   <main class="container">
     {% block content %}{% endblock %}
