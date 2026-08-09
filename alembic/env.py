@@ -16,7 +16,7 @@ if config.config_file_name is not None:
 
 # import Base and all models so that target_metadata picks up the full schema
 from humble_sync.db.database import Base  # noqa: E402
-from humble_sync.db.models import User, Bundle, Item, EvaluatedBundle  # noqa: E402, F401
+from humble_sync.db.models import User, Bundle, Item, EvaluatedBundle, UserBookLog  # noqa: E402, F401
 
 target_metadata = Base.metadata
 
