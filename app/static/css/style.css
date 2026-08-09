@@ -1989,3 +1989,116 @@ main.container:has(.app-workspace) {
     background: var(--color-border-strong);
   }
 }
+
+/*
+ * ================================================================
+ *   6. AUTH FORMS
+ *   Login and register page layouts.  Centred card on a neutral
+ *   background, reusing the existing design-token palette.
+ * ================================================================
+ */
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  padding: var(--space-4);
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 360px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0 0 var(--space-3);
+  text-align: center;
+}
+
+.auth-field {
+  margin-bottom: var(--space-2);
+}
+
+.auth-field label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+  color: var(--color-text-secondary);
+}
+
+.auth-field input {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: var(--text-sm);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.auth-field input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-ring);
+}
+
+.auth-error {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
+}
+
+.auth-btn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-inverse);
+  background: var(--color-accent);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.auth-btn:hover {
+  background: var(--color-accent-hover);
+}
+
+.auth-btn:active {
+  transform: translateY(1px);
+}
+
+.auth-alt {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-3);
+}
+
+.auth-alt a {
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-alt a:hover {
+  text-decoration: underline;
+}

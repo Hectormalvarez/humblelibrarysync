@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="auth-page">
+  <form class="auth-form" id="register-form">
+    <h1 class="auth-title">Create Account</h1>
+    <div class="auth-field">
+      <label for="reg-email">Email</label>
+      <input type="email" id="reg-email" name="email" placeholder="you@example.com" required autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label for="reg-password">Password</label>
+      <input type="password" id="reg-password" name="password" placeholder="••••••••" required autocomplete="new-password">
+    </div>
+    <div class="auth-field">
+      <label for="reg-confirm">Confirm Password</label>
+      <input type="password" id="reg-confirm" name="confirm_password" placeholder="••••••••" required autocomplete="new-password">
+    </div>
+    <div id="register-error" class="auth-error" hidden></div>
+    <button type="submit" class="auth-btn">Register</button>
+    <p class="auth-alt">
+      Already have an account? <a href="/login">Sign in</a>
+    </p>
+  </form>
+</div>
+
+<script>
+document.getElementById('register-form').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+  const confirmPassword = document.getElementById('reg-confirm').value;
+  const errorEl = document.getElementById('register-error');
+  errorEl.hidden = true;
+
+  if (password !== confirmPassword) {
+    errorEl.textContent = 'Passwords do not match.';
+    errorEl.hidden = false;
+    return;
+  }
+
+  try {
+    const res = await fetch('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      credentials: 'include',
+    });
+    if (res.ok) {
+      window.location.href = '/login';
+    } else {
+      const data = await res.json().catch(() => ({}));
+      errorEl.textContent = data.detail || 'Registration failed. Please try again.';
+      errorEl.hidden = false;
+    }
+  } catch (err) {
+    errorEl.textContent = 'Network error. Please try again.';
+    errorEl.hidden = false;
+  }
+});
+</script>
+{% endblock %}
