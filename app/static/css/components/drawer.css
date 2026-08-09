@@ -228,6 +228,35 @@
 
 /* .drawer-close:focus-visible inherits from global :focus-visible */
 
+/*
+ * .google-search-btn and .wishlist-add-btn are action buttons placed in the
+ * inspector detail view.  They inherit .download-btn styles but use distinct
+ * colours so the user can visually distinguish "search" from "add to wishlist".
+ */
+.google-search-btn {
+  background: var(--color-accent, #1a73e8);
+  color: #fff;
+}
+
+.google-search-btn:hover {
+  opacity: 0.85;
+}
+
+.wishlist-add-btn {
+  background: var(--color-text-secondary, #6c757d);
+  color: #fff;
+}
+
+.wishlist-add-btn:hover {
+  opacity: 0.85;
+}
+
+.inspector-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .inspector-meta,
 .inspector-formats,
 .inspector-downloads {

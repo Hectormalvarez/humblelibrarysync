@@ -49,6 +49,19 @@
     {% endif %}
   </section>
 
+  <section class="inspector-actions" style="margin-bottom:var(--space-3);">
+    <a href="https://www.google.com/search?q={{ item.title | urlencode }}"
+       target="_blank" rel="noopener noreferrer"
+       class="download-btn google-search-btn">🔍 Search Google</a>
+    <button class="download-btn wishlist-add-btn"
+      hx-post="/booklog/entries"
+      hx-vals='{"title":"{{ item.title }}","author_or_publisher":"{{ item.publisher }}","status":"wishlist"}'
+      hx-target="#booklog-inspector-drawer"
+      hx-swap="innerHTML"
+      hx-headers='{"Content-Type":"application/json"}'
+      >🔖 Add to Wishlist</button>
+  </section>
+
   <section class="inspector-downloads">
     <h3 class="format-heading text-heading-uppercase">Downloads</h3>
     {# `item.downloads` is a JSON dict where keys are format names (e.g. "pdf", "epub")
