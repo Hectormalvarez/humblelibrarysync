@@ -5,6 +5,7 @@ Transforms raw JSONL payloads into normalized in-memory catalog structures.
 
 import csv
 import json
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -15,14 +16,23 @@ from humble_sync.db.models import Bundle, Item
 from sqlalchemy.orm import Session
 
 
-def _upsert_bundle(db: Session, bundle_title: str, item_sample: dict) -> Bundle:
-    """Look up an existing bundle by title or create a new one, then return it.
+def _upsert_bundle(
+    db: Session,
+    bundle_title: str,
+    item_sample: dict,
+    user_id: uuid.UUID | str | None = None,
+) -> Bundle:
+    """Look up an existing bundle by title (and optional user_id) or create a new one.
 
     If the bundle already exists its ``purchase_date`` and ``captured_at`` are
     refreshed from *item_sample*.  A brand-new bundle is flushed immediately
     so that ``bundle.id`` is available for item association.
     """
-    bundle = db.query(Bundle).filter_by(title=bundle_title).first()
+    filters: dict[str, Any] = {"title": bundle_title}
+    if user_id is not None:
+        filters["user_id"] = user_id
+
+    bundle = db.query(Bundle).filter_by(**filters).first()
     if bundle:
         bundle.purchase_date = item_sample.get("purchase_date")
         bundle.captured_at = item_sample.get("captured_at")
@@ -31,14 +41,20 @@ def _upsert_bundle(db: Session, bundle_title: str, item_sample: dict) -> Bundle:
             title=bundle_title,
             purchase_date=item_sample.get("purchase_date"),
             captured_at=item_sample.get("captured_at"),
+            user_id=user_id,
         )
         db.add(bundle)
         db.flush()  # Get the bundle.id for item association
     return bundle
 
 
-def _upsert_item(db: Session, bundle: Bundle, item_data: dict) -> Item:
-    """Look up an existing item by (bundle_id, title) or create a new one.
+def _upsert_item(
+    db: Session,
+    bundle: Bundle,
+    item_data: dict,
+    user_id: uuid.UUID | str | None = None,
+) -> Item:
+    """Look up an existing item by (bundle_id, title, user_id) or create a new one.
 
     If the item already exists its ``publisher``, ``item_type``,
     ``available_formats`` and ``downloads`` fields are refreshed from
@@ -47,10 +63,14 @@ def _upsert_item(db: Session, bundle: Bundle, item_data: dict) -> Item:
 
     Returns the attached ``Item`` ORM instance.
     """
-    existing_item = db.query(Item).filter_by(
-        bundle_id=bundle.id,
-        title=item_data["title"],
-    ).first()
+    filters: dict[str, Any] = {
+        "bundle_id": bundle.id,
+        "title": item_data["title"],
+    }
+    if user_id is not None:
+        filters["user_id"] = user_id
+
+    existing_item = db.query(Item).filter_by(**filters).first()
 
     if existing_item:
         existing_item.publisher = item_data.get("publisher", "Unknown")
@@ -65,6 +85,7 @@ def _upsert_item(db: Session, bundle: Bundle, item_data: dict) -> Item:
         item_type=item_data.get("type", "download"),
         available_formats=item_data.get("available_formats", []),
         downloads=item_data.get("downloads", {}),
+        user_id=user_id,
     )
     bundle.items.append(new_item)
     return new_item
@@ -260,17 +281,22 @@ def export_to_txt(catalog: dict[str, Any], output_file: str | Path) -> None:
             f.write(f"{item['title']}\n")
 
 
-def sync_catalog_to_db(catalog_data: dict[str, Any], db_session=None) -> None:
+def sync_catalog_to_db(
+    catalog_data: dict[str, Any],
+    db_session=None,
+    user_id: uuid.UUID | str | None = None,
+) -> None:
     """Syncs parsed catalog data into the database using upsert logic for idempotency.
 
     This function can be safely re-run without creating duplicates:
-    - Existing bundles are matched by title
-    - Existing items are matched by (bundle_id, title) combination
+    - Existing bundles are matched by title (and user_id when provided)
+    - Existing items are matched by (bundle_id, title, user_id) combination
     - If a match is found, the record is updated; otherwise, a new record is created
 
     Args:
         catalog_data: The catalog dictionary with 'items' key.
         db_session: Optional SQLAlchemy session. If None, a new session is created.
+        user_id: Optional user UUID to scope records to a single user.
     """
     init_db()
     owns_session = db_session is None
@@ -282,10 +308,10 @@ def sync_catalog_to_db(catalog_data: dict[str, Any], db_session=None) -> None:
             bundles_by_title.setdefault(bundle_title, []).append(item)
 
         for bundle_title, items in bundles_by_title.items():
-            bundle = _upsert_bundle(db, bundle_title, items[0])
+            bundle = _upsert_bundle(db, bundle_title, items[0], user_id=user_id)
 
             for item_data in items:
-                _upsert_item(db, bundle, item_data)
+                _upsert_item(db, bundle, item_data, user_id=user_id)
 
         db.commit()
     except Exception:

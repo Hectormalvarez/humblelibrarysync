@@ -4,6 +4,7 @@ Provides methods to fetch user orders and sync library data to the database.
 """
 
 import asyncio
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -204,7 +205,9 @@ def normalize_orders_to_catalog(
 
 
 async def sync_account_library(
-    session_cookie: str, db_session=None
+    session_cookie: str,
+    db_session=None,
+    user_id: uuid.UUID | str | None = None,
 ) -> dict[str, Any]:
     """Orchestrate a full library sync from the Humble API to the database.
 
@@ -214,6 +217,7 @@ async def sync_account_library(
     Args:
         session_cookie: The `_simpleauth_sess` cookie value.
         db_session: Optional SQLAlchemy session. If None, a new session is created.
+        user_id: Optional user UUID to scope records to a single user.
 
     Returns:
         The normalized catalog dictionary that was synced.
@@ -226,9 +230,9 @@ async def sync_account_library(
             # No orders found - return empty catalog
             catalog = normalize_orders_to_catalog([])
             if db_session is None:
-                sync_catalog_to_db(catalog)
+                sync_catalog_to_db(catalog, user_id=user_id)
             else:
-                sync_catalog_to_db(catalog, db_session=db_session)
+                sync_catalog_to_db(catalog, db_session=db_session, user_id=user_id)
             return catalog
 
         # Fetch all order details concurrently
@@ -243,8 +247,8 @@ async def sync_account_library(
 
         # Sync to database
         if db_session is None:
-            sync_catalog_to_db(catalog)
+            sync_catalog_to_db(catalog, user_id=user_id)
         else:
-            sync_catalog_to_db(catalog, db_session=db_session)
+            sync_catalog_to_db(catalog, db_session=db_session, user_id=user_id)
 
         return catalog
