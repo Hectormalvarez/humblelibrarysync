@@ -1,6 +1,7 @@
 """Reusable query helpers for the Humble Library Sync catalog."""
 
 import re
+import uuid
 
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
@@ -21,9 +22,20 @@ _PREFIX_RE = re.compile(
 )
 
 
-def get_total_item_count(db: Session) -> int:
-    """Return the total number of items in the catalog."""
-    return db.query(func.count(Item.id)).scalar() or 0
+def get_total_item_count(db: Session, user_id: uuid.UUID | str | None = None) -> int:
+    """Return the total number of items in the catalog.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    user_id:
+        Optional user UUID to scope results to a single user.
+    """
+    query = db.query(func.count(Item.id))
+    if user_id is not None:
+        query = query.filter(Item.user_id == user_id)
+    return query.scalar() or 0
 
 
 def get_sort_key(title: str) -> str:
@@ -49,7 +61,7 @@ def _normalize_category_sort(sort: str) -> str:
     return "title_asc"
 
 
-def get_library_metrics(db: Session) -> dict:
+def get_library_metrics(db: Session, user_id: uuid.UUID | str | None = None) -> dict:
     """Return aggregate library metrics for the overview panel.
 
     The returned dictionary contains:
@@ -58,17 +70,30 @@ def get_library_metrics(db: Session) -> dict:
     - ``total_bundles``: total number of bundles.
     - ``format_breakdown``: list of dicts with ``format`` and ``count``
       keys, sorted by descending count then format name.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    user_id:
+        Optional user UUID to scope results to a single user.
     """
-    total_items = db.query(func.count(Item.id)).scalar() or 0
-    total_publishers = db.query(func.count(distinct(Item.publisher))).scalar() or 0
-    total_bundles = db.query(func.count(Bundle.id)).scalar() or 0
+    item_query = db.query(Item)
+    bundle_query = db.query(Bundle)
+    if user_id is not None:
+        item_query = item_query.filter(Item.user_id == user_id)
+        bundle_query = bundle_query.filter(Bundle.user_id == user_id)
+
+    total_items = item_query.count() or 0
+    total_publishers = item_query.with_entities(func.count(distinct(Item.publisher))).scalar() or 0
+    total_bundles = bundle_query.count() or 0
 
     # Count items per format by scanning the available_formats JSON arrays
     # in Python. This keeps the query portable across SQL backends (SQLite
     # stores JSON columns as text, so backend-specific JSON functions would
     # otherwise be needed).
     format_counts: dict[str, int] = {}
-    for (formats,) in db.query(Item.available_formats).all():
+    for (formats,) in item_query.with_entities(Item.available_formats).all():
         for fmt in formats or []:
             format_counts[fmt] = format_counts.get(fmt, 0) + 1
 
@@ -87,24 +112,29 @@ def get_library_metrics(db: Session) -> dict:
     }
 
 
-def get_library_item_titles(db: Session) -> list[dict[str, str]]:
+def get_library_item_titles(db: Session, user_id: uuid.UUID | str | None = None) -> list[dict[str, str]]:
     """Return a list of all library item titles.
 
     Parameters
     ----------
     db:
         SQLAlchemy session.
+    user_id:
+        Optional user UUID to scope results to a single user.
 
     Returns
     -------
     list[dict[str, str]]
         A list of dicts, each containing a single ``"title"`` key.
     """
-    rows = db.query(Item.title).all()
+    query = db.query(Item.title)
+    if user_id is not None:
+        query = query.filter(Item.user_id == user_id)
+    rows = query.all()
     return [{"title": title} for (title,) in rows]
 
 
-def get_top_publishers_and_bundles(db: Session) -> dict:
+def get_top_publishers_and_bundles(db: Session, user_id: uuid.UUID | str | None = None) -> dict:
     """Return the top 5 publishers and bundles by item count.
 
     Used by the library search endpoint to populate the category summary
@@ -113,17 +143,34 @@ def get_top_publishers_and_bundles(db: Session) -> dict:
     The returned dictionary contains:
     - ``publishers_summary``: list of dicts with ``name`` and ``count``.
     - ``bundles_summary``: list of dicts with ``name`` and ``count``.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy session.
+    user_id:
+        Optional user UUID to scope results to a single user.
     """
-    publisher_rows = (
+    pub_query = (
         db.query(Item.publisher, func.count(Item.id).label("count"))
+    )
+    bundle_query = (
+        db.query(Bundle.title, func.count(Item.id).label("count"))
+        .join(Item, Item.bundle_id == Bundle.id)
+    )
+    if user_id is not None:
+        pub_query = pub_query.filter(Item.user_id == user_id)
+        bundle_query = bundle_query.filter(Item.user_id == user_id)
+
+    publisher_rows = (
+        pub_query
         .group_by(Item.publisher)
         .order_by(func.count(Item.id).desc())
         .limit(5)
         .all()
     )
     bundle_rows = (
-        db.query(Bundle.title, func.count(Item.id).label("count"))
-        .join(Item, Item.bundle_id == Bundle.id)
+        bundle_query
         .group_by(Bundle.id)
         .order_by(func.count(Item.id).desc())
         .limit(5)
@@ -140,7 +187,12 @@ def get_top_publishers_and_bundles(db: Session) -> dict:
     }
 
 
-def get_all_publishers(db: Session, q: str = "", sort: str = "title_asc") -> tuple[list[dict], str]:
+def get_all_publishers(
+    db: Session,
+    q: str = "",
+    sort: str = "title_asc",
+    user_id: uuid.UUID | str | None = None,
+) -> tuple[list[dict], str]:
     """Return all publishers with item counts, filtered and sorted.
 
     Parameters
@@ -152,6 +204,8 @@ def get_all_publishers(db: Session, q: str = "", sort: str = "title_asc") -> tup
     sort:
         Sort key. One of ``title_asc``, ``title_desc``, ``count_desc``,
         ``count_asc``. Falls back to ``title_asc`` for invalid values.
+    user_id:
+        Optional user UUID to scope results to a single user.
 
     Returns
     -------
@@ -161,6 +215,8 @@ def get_all_publishers(db: Session, q: str = "", sort: str = "title_asc") -> tup
     """
     active_sort = _normalize_category_sort(sort)
     base_query = db.query(Item.publisher, func.count(Item.id).label("count"))
+    if user_id is not None:
+        base_query = base_query.filter(Item.user_id == user_id)
     if q:
         base_query = base_query.filter(Item.publisher.ilike(f"%{q}%"))
 
@@ -197,7 +253,12 @@ def get_all_publishers(db: Session, q: str = "", sort: str = "title_asc") -> tup
     return publishers, active_sort
 
 
-def get_all_bundles(db: Session, q: str = "", sort: str = "title_asc") -> tuple[list[dict], str]:
+def get_all_bundles(
+    db: Session,
+    q: str = "",
+    sort: str = "title_asc",
+    user_id: uuid.UUID | str | None = None,
+) -> tuple[list[dict], str]:
     """Return all bundles with item counts, filtered and sorted.
 
     Parameters
@@ -210,6 +271,8 @@ def get_all_bundles(db: Session, q: str = "", sort: str = "title_asc") -> tuple[
         Sort key. One of ``title_asc``, ``title_desc``, ``count_asc``,
         ``count_desc``, ``date_asc``, ``date_desc``. Falls back to
         ``title_asc`` for invalid values.
+    user_id:
+        Optional user UUID to scope results to a single user.
 
     Returns
     -------
@@ -222,6 +285,8 @@ def get_all_bundles(db: Session, q: str = "", sort: str = "title_asc") -> tuple[
         db.query(Bundle.id, Bundle.title, Bundle.purchase_date, func.count(Item.id).label("count"))
         .join(Item, Item.bundle_id == Bundle.id)
     )
+    if user_id is not None:
+        base_query = base_query.filter(Bundle.user_id == user_id)
     if q:
         base_query = base_query.filter(Bundle.title.ilike(f"%{q}%"))
 
@@ -276,7 +341,11 @@ def get_all_bundles(db: Session, q: str = "", sort: str = "title_asc") -> tuple[
     return bundles, active_sort
 
 
-def get_evaluated_bundle_by_url(db: Session, url: str) -> EvaluatedBundle | None:
+def get_evaluated_bundle_by_url(
+    db: Session,
+    url: str,
+    user_id: uuid.UUID | str | None = None,
+) -> EvaluatedBundle | None:
     """Return an EvaluatedBundle matching the given URL, or ``None`` if not found.
 
     Parameters
@@ -285,6 +354,8 @@ def get_evaluated_bundle_by_url(db: Session, url: str) -> EvaluatedBundle | None
         SQLAlchemy session.
     url:
         The bundle URL to look up.
+    user_id:
+        Optional user UUID to scope results to a single user.
 
     Returns
     -------
@@ -292,10 +363,17 @@ def get_evaluated_bundle_by_url(db: Session, url: str) -> EvaluatedBundle | None
         The matching ``EvaluatedBundle`` ORM object, or ``None`` if no row
         matches the given URL.
     """
-    return db.query(EvaluatedBundle).filter(EvaluatedBundle.url == url).first()
+    query = db.query(EvaluatedBundle).filter(EvaluatedBundle.url == url)
+    if user_id is not None:
+        query = query.filter(EvaluatedBundle.user_id == user_id)
+    return query.first()
 
 
-def get_item_by_id(db: Session, item_id: int) -> Item | None:
+def get_item_by_id(
+    db: Session,
+    item_id: int,
+    user_id: uuid.UUID | str | None = None,
+) -> Item | None:
     """Return a single item joined with its bundle, or ``None`` if not found.
 
     Parameters
@@ -304,6 +382,8 @@ def get_item_by_id(db: Session, item_id: int) -> Item | None:
         SQLAlchemy session.
     item_id:
         Primary key of the item to fetch.
+    user_id:
+        Optional user UUID to scope results to a single user.
 
     Returns
     -------
@@ -311,12 +391,14 @@ def get_item_by_id(db: Session, item_id: int) -> Item | None:
         The ``Item`` ORM object with its parent ``Bundle`` eagerly loaded,
         or ``None`` if no row matches the given id.
     """
-    return (
+    query = (
         db.query(Item)
         .join(Bundle, Item.bundle_id == Bundle.id)
         .filter(Item.id == item_id)
-        .first()
     )
+    if user_id is not None:
+        query = query.filter(Item.user_id == user_id)
+    return query.first()
 
 
 def search_library_items(
@@ -327,6 +409,7 @@ def search_library_items(
     sort: str = "title_asc",
     limit: int = 30,
     offset: int = 0,
+    user_id: uuid.UUID | str | None = None,
 ) -> dict:
     """Search, filter, sort, and paginate library items.
 
@@ -347,6 +430,8 @@ def search_library_items(
         Maximum number of items to return.
     offset:
         Number of items to skip (for pagination).
+    user_id:
+        Optional user UUID to scope results to a single user.
 
     Returns
     -------
@@ -362,6 +447,10 @@ def search_library_items(
     """
     active_sort = _normalize_search_sort(sort)
     base_query = db.query(Item)
+
+    # Apply user scope
+    if user_id is not None:
+        base_query = base_query.filter(Item.user_id == user_id)
 
     # Apply strict equality filters when provided
     if publisher is not None:
