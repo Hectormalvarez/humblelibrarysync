@@ -14,6 +14,7 @@ from app.routers.deals import router as deals_router
 from app.routers.library import router as library_router
 from app.routers.sync import router as sync_router
 from app.routers.web_auth import router as web_auth_router
+from app.routers.booklog import router as booklog_router
 
 # Initialize the FastAPI application instance.
 # This is the central object that routes HTTP requests to the appropriate handlers.
@@ -41,6 +42,9 @@ app.include_router(sync_router)
 
 # Include the web auth router which handles GET /login and GET /register.
 app.include_router(web_auth_router)
+
+# Include the book log router for wishlist/reading items.
+app.include_router(booklog_router)
 
 # Include the auth and registration routers from fastapi-users.
 app.include_router(

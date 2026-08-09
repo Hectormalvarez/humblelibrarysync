@@ -1,0 +1,75 @@
+{# Book Log inspector partial – rendered into #booklog-inspector-drawer. #}
+<div class="inspector-detail drawer-scroll">
+  <header class="inspector-header">
+    <h2 class="inspector-title">{{ entry.title }}</h2>
+    <button class="drawer-close"
+      hx-get="/booklog/stream"
+      hx-target="#master-stream"
+      hx-swap="innerHTML"
+      aria-label="Close inspector">✕</button>
+  </header>
+
+  <section class="inspector-meta">
+    <dl class="meta-list surface-list">
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Status</dt>
+        <dd class="meta-value">
+          <span class="badge badge--{{ entry.status }}">{{ entry.status }}</span>
+        </dd>
+      </div>
+      {% if entry.author_or_publisher %}
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Author / Publisher</dt>
+        <dd class="meta-value">{{ entry.author_or_publisher }}</dd>
+      </div>
+      {% endif %}
+      {% if entry.volume_info %}
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Volume</dt>
+        <dd class="meta-value">{{ entry.volume_info }}</dd>
+      </div>
+      {% endif %}
+      {% if entry.target_price %}
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Target Price</dt>
+        <dd class="meta-value">${{ "%.2f" % entry.target_price }}</dd>
+      </div>
+      {% endif %}
+      {% if entry.notes %}
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Notes</dt>
+        <dd class="meta-value">{{ entry.notes }}</dd>
+      </div>
+      {% endif %}
+      <div class="meta-row surface-list-row">
+        <dt class="meta-label text-heading-uppercase">Added</dt>
+        <dd class="meta-value">{{ entry.created_at[:10] }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="inspector-formats" style="margin-top:var(--space-3);">
+    <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
+      <button class="download-btn"
+        hx-post="/booklog/entries/{{ entry.id }}/status"
+        hx-vals='{"status":"reading"}'
+        hx-target="#booklog-inspector-drawer"
+        hx-swap="innerHTML"
+        hx-headers='{"Content-Type":"application/json"}'
+        >📖 Start Reading</button>
+      <button class="download-btn"
+        hx-post="/booklog/entries/{{ entry.id }}/status"
+        hx-vals='{"status":"finished"}'
+        hx-target="#booklog-inspector-drawer"
+        hx-swap="innerHTML"
+        hx-headers='{"Content-Type":"application/json"}'
+        >✅ Mark Finished</button>
+      <button class="download-btn"
+        style="background:var(--color-danger, #dc3545);"
+        hx-delete="/booklog/entries/{{ entry.id }}"
+        hx-target="#master-stream"
+        hx-swap="innerHTML"
+        >🗑 Delete</button>
+    </div>
+  </section>
+</div>

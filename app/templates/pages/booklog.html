@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="app-workspace">
+  <div class="master-pane">
+    <div class="control-bar">
+      <h1 class="view-title">Book Log</h1>
+      <p class="view-subtitle">Track your wishlist, reading, and finished books.</p>
+    </div>
+    <div id="master-stream" class="stream-container" hx-get="/booklog/stream" hx-trigger="load"></div>
+  </div>
+  <div class="inspector-pane">
+    <aside id="booklog-inspector-drawer" class="drawer-container">
+      <div class="overview-container drawer-scroll">
+        <div class="overview-header">
+          <h2 class="overview-title">Book Inspector</h2>
+          <p class="overview-subtitle">Select a book to inspect details.</p>
+        </div>
+      </div>
+    </aside>
+    <footer class="status-footer"></footer>
+  </div>
+</div>
+{% endblock %}
