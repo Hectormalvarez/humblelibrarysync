@@ -4,11 +4,11 @@ A modular Python toolkit to capture, parse, persist, and analyze your Humble Bun
 
 ## Features
 
-- **Database Sync & Ingestion**: Parses JSONL API captures and bulk-syncs normalized records (`Bundle` and `Item`) into SQLite (`parse.py` & `database.py`).
-- **Interactive CLI Dashboard**: Runs terminal menu loops for search, status, duplicate analysis, and deal evaluation backed by SQLite (`cli.py`).
-- **Live Deal Evaluator**: Evaluates active bundles against owned items in the database and tracks deal history in the `evaluated_bundles` table (`bundle_inspector.py`).
-- **CDN Link Health & Duplicate Tracking**: Queries SQL for active vs expired download links and title clusters (`status.py`, `library_duplicates.py`).
-- **Passive API Interception**: Uses Playwright to capture API responses directly from Humble Bundle without fragile web scrapers (`capture.py`).
+- **Database Sync & Ingestion**: Parses JSONL API captures and bulk-syncs normalized records (`Bundle` and `Item`) into SQLite (`services/parser.py` & `db/database.py`).
+- **Web Dashboard**: FastAPI-powered HTML interface with HTMX partials for search, status, duplicate analysis, and deal evaluation (`app/routers/`).
+- **Live Deal Evaluator**: Evaluates active bundles against owned items in the database and tracks deal history in the `evaluated_bundles` table (`services/evaluator.py` & `services/deal_logger.py`).
+- **CDN Link Health & Duplicate Tracking**: Queries SQL for active vs expired download links and title clusters (`services/status.py`, `services/duplicates.py`).
+- **API Synchronization**: Async HTTP client for direct Humble Bundle API synchronization (`services/client.py`).
 
 ## Requirements
 
@@ -62,12 +62,15 @@ python cli.py inspect
 
 | Module | Purpose |
 | --- | --- |
-| `database.py` | Engine initialization, session management, and `DATABASE_URL` setup |
-| `models.py` | SQLAlchemy ORM schemas (`Bundle`, `Item`, `EvaluatedBundle`) |
-| `cli.py` | Unified entrypoint, database state onboarding, and interactive menu routing |
-| `parse.py` | JSONL parsing engine and database sync layer (`sync_catalog_to_db`) |
-| `status.py` | Calculates catalog health and CDN link validity directly from SQLite |
-| `bundle_inspector.py` | Evaluates live deals and persists snapshots in `evaluated_bundles` table |
-| `library_duplicates.py` | Duplicate title detection and cluster analysis via database queries |
-| `search.py` | Preloads unique titles from SQLite for fast interactive `prompt_toolkit` autocomplete |
-| `capture.py` | Playwright network listener intercepting raw Humble API payloads |
+| `config.py` | Centralized application settings, paths, and URLs |
+| `db/database.py` | Engine initialization, session management, and `DATABASE_URL` setup |
+| `db/queries.py` | Reusable query helpers for database lookups |
+| `db/models.py` | SQLAlchemy ORM schemas (`Bundle`, `Item`, `EvaluatedBundle`) |
+| `services/scraper.py` | Low-level HTTP requests and landing page HTML/JSON parsing |
+| `services/bundle_cache.py` | JSON dump file I/O and TTL cache invalidation |
+| `services/deal_logger.py` | Evaluated bundle database persistence and expiration tracking |
+| `services/parser.py` | JSONL parsing engine and database sync layer (`sync_catalog_to_db`) |
+| `services/evaluator.py` | Pure domain overlap math and report formatting |
+| `services/client.py` | Async HTTP client for direct Humble Bundle API synchronization |
+| `services/status.py` | Calculates catalog health and CDN link validity directly from SQLite |
+| `services/duplicates.py` | Duplicate title detection and cluster analysis via database queries |
