@@ -2,9 +2,13 @@
 Tests for the Deal Inspector router – /deals endpoints.
 """
 
+import uuid
+
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
+
+TEST_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
 class TestDealsPage:
@@ -151,7 +155,7 @@ class TestDealsInspect:
         bundle_id = None
         item_id = None
         try:
-            bundle = Bundle(title="Existing Bundle", purchase_date="2024-01-01")
+            bundle = Bundle(title="Existing Bundle", purchase_date="2024-01-01", user_id=TEST_USER_ID)
             db.add(bundle)
             db.flush()
             bundle_id = bundle.id
@@ -163,6 +167,7 @@ class TestDealsInspect:
                 item_type="ebook",
                 available_formats=["PDF"],
                 downloads={},
+                user_id=TEST_USER_ID,
             )
             db.add(item)
             db.flush()
@@ -343,6 +348,7 @@ class TestDealsInspectExpired:
                 end_date="2024-01-15T23:59:59+00:00",
                 evaluated_at="2024-01-10T12:00:00+00:00",
                 expired_at="2024-01-16T00:00:00+00:00",
+                user_id=TEST_USER_ID,
                 evaluation={
                     "total_items": 8,
                     "matched_count": 2,

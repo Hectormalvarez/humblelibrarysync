@@ -7,6 +7,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
+from humble_sync.auth import fastapi_users
+from humble_sync.db.models import User
 from humble_sync.services.deal_logger import (
     get_expired_entries,
     load_evaluated_bundles_log,
@@ -24,6 +26,8 @@ from humble_sync.db.queries import get_evaluated_bundle_by_url, get_library_item
 router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
+
+current_active_user = fastapi_users.current_user(active=True)
 
 
 @router.get("/deals")
@@ -57,7 +61,10 @@ def deals_live(request: Request):
 
 
 @router.get("/deals/expired")
-def deals_expired(request: Request):
+def deals_expired(
+    request: Request,
+    user: User = Depends(current_active_user),
+):
     """
     HTMX partial – marks past deals as expired, fetches all evaluated
     bundle logs, filters to expired entries, and renders the expired_deals
@@ -65,13 +72,13 @@ def deals_expired(request: Request):
     """
     # 1. Transition past deals to expired state
     try:
-        mark_expired_entries()
+        mark_expired_entries(user_id=user.id)
     except Exception:
         pass  # Non-critical
 
     # 2. Fetch all log records
     try:
-        all_entries = load_evaluated_bundles_log()
+        all_entries = load_evaluated_bundles_log(user_id=user.id)
     except Exception as e:
         return templates.TemplateResponse(
             request,
@@ -94,12 +101,13 @@ def deals_inspect_expired(
     request: Request,
     url: str = Query(...),
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     """
     HTMX partial – fetches a saved EvaluatedBundle record by URL and
     renders the deal inspector drawer using the stored evaluation data.
     """
-    record = get_evaluated_bundle_by_url(db, url)
+    record = get_evaluated_bundle_by_url(db, url, user_id=user.id)
 
     if not record:
         return templates.TemplateResponse(
@@ -143,6 +151,7 @@ def deals_inspect(
     request: Request,
     url: str = Query(...),
     db: Session = Depends(get_db),
+    user: User = Depends(current_active_user),
 ):
     """
     HTMX partial – fetches bundle items from *url*, evaluates overlap
@@ -165,7 +174,7 @@ def deals_inspect(
     tier_item_map = bundle_data.get("tier_item_map", {})
 
     # 2. Fetch library items from DB
-    library_items = get_library_item_titles(db)
+    library_items = get_library_item_titles(db, user_id=user.id)
 
     # 3. Evaluate overlap
     eval_data = evaluate_deal(bundle_items, library_items, pricing, tier_item_map)
@@ -178,6 +187,7 @@ def deals_inspect(
             machine_name=bundle_data.get("machine_name", ""),
             end_date="",
             eval_data=eval_data,
+            user_id=user.id,
         )
     except Exception:
         pass  # Non-critical logging error
