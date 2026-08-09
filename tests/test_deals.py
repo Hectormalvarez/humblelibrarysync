@@ -127,10 +127,14 @@ class TestDealsInspect:
         assert "Test Bundle" in response.text
         assert "0.0% Owned" in response.text
         assert "Pricing Tiers" in response.text
-        # Check tier breakdown: all items unowned
-        assert "[+]</span> <span class=\"sr-only\">New:</span> Book One" in response.text
-        assert "[+]</span> <span class=\"sr-only\">New:</span> Book Two" in response.text
-        assert "[+]</span> <span class=\"sr-only\">New:</span> Book Three" in response.text
+        # Check tier breakdown: all items unowned with wishlist buttons
+        assert "Book One" in response.text
+        assert "Book Two" in response.text
+        assert "Book Three" in response.text
+        assert "Add Book One to wishlist" in response.text
+        assert "Add Book Two to wishlist" in response.text
+        assert "Add Book Three to wishlist" in response.text
+        assert "hx-post=\"/booklog/entries\"" in response.text
 
     def test_deals_inspect_handles_fetch_error(self, client: TestClient):
         with patch(
@@ -224,10 +228,14 @@ class TestDealsInspect:
         assert response.status_code == 200
         # 1 out of 3 = 33.3% owned
         assert "33.3% Owned" in response.text
-        # Book One should be owned
-        assert "[x]</span> <span class=\"sr-only\">Owned:</span> Book One" in response.text
-        assert "[+]</span> <span class=\"sr-only\">New:</span> Book Two" in response.text
-        assert "[+]</span> <span class=\"sr-only\">New:</span> Book Three" in response.text
+        # Book One should be owned (no wishlist button for owned items)
+        assert "Book One" in response.text
+        assert "Book Two" in response.text
+        assert "Book Three" in response.text
+        # Wishlist button only appears for unowned titles
+        assert "Add Book Two to wishlist" in response.text
+        assert "Add Book Three to wishlist" in response.text
+        assert "Add Book One to wishlist" not in response.text
 
         # Clean up the test data to avoid leaking into other tests
         db = SessionLocal()
@@ -396,10 +404,12 @@ class TestDealsInspectExpired:
             # Verify evaluation stats are rendered
             assert "25.0% Owned" in response.text
             assert "8" in response.text  # total_items
-            # Verify tier breakdown is rendered
-            assert "[x]</span> <span class=\"sr-only\">Owned:</span> Owned Item A" in response.text
-            assert "[+]</span> <span class=\"sr-only\">New:</span> New Item X" in response.text
-            assert "[+]</span> <span class=\"sr-only\">New:</span> New Item Y" in response.text
+            # Verify tier breakdown is rendered with wishlist buttons for unowned
+            assert "Owned Item A" in response.text
+            assert "New Item X" in response.text
+            assert "New Item Y" in response.text
+            assert "Add New Item X to wishlist" in response.text
+            assert "Add New Item Y to wishlist" in response.text
         finally:
             # Clean up
             db = SessionLocal()

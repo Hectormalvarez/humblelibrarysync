@@ -90,7 +90,18 @@
         <li class="tier-item tier-item--owned"><span aria-hidden="true">[x]</span> <span class="sr-only">Owned:</span> {{ title }}</li>
         {% endfor %}
         {% for title in tier.unowned %}
-        <li class="tier-item tier-item--unowned"><span aria-hidden="true">[+]</span> <span class="sr-only">New:</span> {{ title }}</li>
+        <li class="tier-item tier-item--unowned">
+          <span class="tier-item__title"><span aria-hidden="true">[+]</span> <span class="sr-only">New:</span> {{ title }}</span>
+          <button
+            class="tier-item__action"
+            aria-label="Add {{ title }} to wishlist"
+            title="Add to wishlist"
+            hx-post="/booklog/entries"
+            hx-vals='{"title": "{{ title | e }}", "status": "wishlist"}'
+            hx-target="#booklog-list-container"
+            hx-swap="innerHTML"
+          >🔖+</button>
+        </li>
         {% endfor %}
       </ul>
     </div>
