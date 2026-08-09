@@ -3,7 +3,7 @@
    without the filter bar or outer wrapper so it can be swapped cleanly. #}
 {% for item in items %}
   {# Clicking this row loads the item detail partial into #inspector-drawer. #}
-  <article class="result-row" tabindex="0"
+  <article class="result-row actionable-row" tabindex="0"
     hx-get="/library/items/{{ item.id }}"
     hx-target="#inspector-drawer"
     hx-swap="innerHTML"
