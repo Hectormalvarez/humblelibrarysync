@@ -145,6 +145,32 @@ class TestEvaluateDeal:
         assert t2["owned"] == []
         assert sorted(t2["unowned"]) == ["Book B", "Book C"]
 
+    def test_wishlist_matching(self):
+        """Verify wishlist_match_count and wishlist_matches are computed."""
+        bundle_items = [{"title": "Book A"}, {"title": "Book B"}, {"title": "Book C"}]
+        library_items = [{"title": "Book A"}]
+        wishlist_items = {("book b", None), ("book d", None)}
+
+        result = evaluate_deal(bundle_items, library_items, wishlist_items=wishlist_items)
+        assert result["wishlist_match_count"] == 1
+        assert result["wishlist_matches"] == ["Book B"]
+
+    def test_wishlist_none_skips_matching(self):
+        """Verify wishlist fields are absent when wishlist_items is None."""
+        bundle_items = [{"title": "Book A"}]
+        library_items = []
+        result = evaluate_deal(bundle_items, library_items, wishlist_items=None)
+        assert "wishlist_match_count" not in result
+        assert "wishlist_matches" not in result
+
+    def test_wishlist_empty_set(self):
+        """Verify empty wishlist produces zero matches."""
+        bundle_items = [{"title": "Book A"}]
+        library_items = []
+        result = evaluate_deal(bundle_items, library_items, wishlist_items=set())
+        assert result["wishlist_match_count"] == 0
+        assert result["wishlist_matches"] == []
+
 
 # ── Tier Item Mapping Tests ───────────────────────────────────────────────
 

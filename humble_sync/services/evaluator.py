@@ -22,6 +22,7 @@ def evaluate_deal(
     library_items: list[dict[str, Any]],
     pricing: list[dict[str, Any]] | None = None,
     tier_item_map: dict[str, list[dict[str, Any]]] | None = None,
+    wishlist_items: set[tuple[str, str | None]] | None = None,
 ) -> dict[str, Any]:
     """
     Evaluates overlap between bundle items and owned library items.
@@ -34,6 +35,8 @@ def evaluate_deal(
         library_items: List of items from the user's library (with 'title' key).
         pricing: Optional list of pricing tiers from fetch_bundle_items().
         tier_item_map: Optional mapping of tier_id to item list.
+        wishlist_items: Optional set of (norm_title, volume_info) tuples
+            representing the user's wishlist for cross-matching.
 
     Returns:
         Dict with keys:
@@ -44,6 +47,8 @@ def evaluate_deal(
             - new_items: List of titles not yet owned.
             - pricing: Pricing tier info (if provided).
             - tier_breakdown: Per-tier item lists with ownership status (if tier_item_map provided).
+            - wishlist_match_count: Number of bundle items on the wishlist (if wishlist_items provided).
+            - wishlist_matches: List of titles that match the wishlist (if wishlist_items provided).
     """
     # Build a set of normalized library titles for fast lookup
     library_titles: set[str] = set()
@@ -55,6 +60,11 @@ def evaluate_deal(
     total_items = len(bundle_items)
     matched_items: list[str] = []
     new_items: list[str] = []
+
+    # Wishlist set for O(1) lookups
+    _wishlist_norm_titles: set[str] = set()
+    if wishlist_items is not None:
+        _wishlist_norm_titles = {nt for nt, _vol in wishlist_items}
 
     for item in bundle_items:
         raw_title = item.get("title", "").strip()
@@ -70,6 +80,19 @@ def evaluate_deal(
     matched_count = len(matched_items)
     overlap_percentage = (matched_count / total_items * 100) if total_items > 0 else 0.0
 
+    # Wishlist cross-matching
+    wishlist_match_count = 0
+    wishlist_matched_titles: list[str] = []
+    if wishlist_items is not None:
+        for item in bundle_items:
+            raw_title = item.get("title", "").strip()
+            if not raw_title:
+                continue
+            norm_title = normalize_title(raw_title)
+            if norm_title in _wishlist_norm_titles:
+                wishlist_match_count += 1
+                wishlist_matched_titles.append(raw_title)
+
     result: dict[str, Any] = {
         "total_items": total_items,
         "matched_count": matched_count,
@@ -77,6 +100,10 @@ def evaluate_deal(
         "matched_items": sorted(matched_items),
         "new_items": sorted(new_items),
     }
+
+    if wishlist_items is not None:
+        result["wishlist_match_count"] = wishlist_match_count
+        result["wishlist_matches"] = sorted(wishlist_matched_titles)
     if pricing is not None:
         result["pricing"] = pricing
 
