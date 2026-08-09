@@ -415,17 +415,9 @@ nav {
   font-weight: 600;
 }
 
-/* Spacing utility – push remaining nav items to the right */
-nav > * {
-  margin-left: auto;
-}
-
-nav > *:first-child {
-  margin-left: 0;
-}
-
-nav > *:first-child + * {
-  margin-left: 0;
+/* Spacer pushes nav items after it to the right */
+.nav-spacer {
+  flex: 1;
 }
 
 .nav-user-badge {
@@ -448,6 +440,51 @@ nav > *:first-child + * {
 .nav-link.nav-logout:hover {
   color: var(--color-error-text);
   background: var(--color-error-bg);
+}
+
+/* ----- Nav Auth Group (Segmented Control) ----- */
+/*
+ * .nav-auth-group wraps Login and Register into a single segmented pill,
+ * visually mirroring the .mode-switcher pattern used elsewhere in the app.
+ */
+.nav-auth-group {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 16px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  text-decoration: none;
+}
+
+.nav-btn--ghost {
+  color: var(--color-text-primary);
+  background: transparent;
+  border-right: 1px solid var(--color-border);
+}
+
+.nav-btn--ghost:hover {
+  background: var(--color-bg-hover);
+}
+
+.nav-btn--solid {
+  color: var(--color-text-inverse);
+  background: var(--color-accent);
+}
+
+.nav-btn--solid:hover {
+  background: var(--color-accent-hover);
 }
 
 /* ----- Page Header Hierarchy ----- */

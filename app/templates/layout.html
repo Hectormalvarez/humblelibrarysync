@@ -20,8 +20,11 @@
     <span class="nav-user-badge">{{ user.email }}</span>
     <a href="/auth/logout" class="nav-link nav-logout">Logout</a>
     {% else %}
-    <a href="/login" class="nav-link">Login</a>
-    <a href="/register" class="nav-link">Register</a>
+    <span class="nav-spacer"></span>
+    <span class="nav-auth-group">
+      <a href="/login" class="nav-btn nav-btn--ghost">Login</a>
+      <a href="/register" class="nav-btn nav-btn--solid">Register</a>
+    </span>
     {% endif %}
   </nav>
   <main class="container">
